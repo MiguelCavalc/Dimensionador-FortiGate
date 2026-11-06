@@ -73,8 +73,8 @@
 <body class="text-slate-800 antialiased selection:bg-sky-600 selection:text-white">
   <div id="app" class="min-h-screen flex flex-col">
     
-    <!-- TOP NAVBAR (ROLA COM A PÁGINA - NÃO É FIXO/STICKY) -->
-    <header class="bg-slate-900 text-white border-b-4 border-fortired shadow-lg no-print">
+    <!-- TOP NAVBAR (FIXO NO TOPO / STICKY HEADER) -->
+    <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur text-white border-b-4 border-fortired shadow-lg no-print">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap justify-between items-center gap-4">
         <div class="flex items-center space-x-4">
           <div class="flex items-center space-x-2">
@@ -535,8 +535,12 @@
                 </div>
               </div>
             </div>
-        <!-- COLUNA DIREITA: PAINEL DE DIMENSIONAMENTO EM TEMPO REAL (5 COLUNAS) -->
-        <div class="lg:col-span-5 lg:sticky lg:top-6 space-y-5">
+
+          </div>
+        </div>
+
+        <!-- COLUNA DIREITA: PAINEL DE DIMENSIONAMENTO FIXO EM TEMPO REAL (5 COLUNAS - STICKY) -->
+        <div class="lg:col-span-5 lg:sticky lg:top-24 space-y-5 self-start">
           
           <!-- CARD PRINCIPAL: CAIXA RECOMENDADA -->
           <div class="bg-white rounded-2xl shadow-xl border-2 border-slate-900 overflow-hidden">
@@ -925,6 +929,34 @@
               </div>
               <div class="p-3.5 flex justify-between items-center bg-white">
                 <span class="font-medium text-slate-700"><strong>13 -</strong> Quais serviços adicionais deseja?</span>
+                <span class="font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-md">
+                  R: {{ qpv.q13_additionalServices.length ? qpv.q13_additionalServices.join(', ') : 'Não desejo serviços adicionais' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Aviso Planta Baixa no Relatório -->
+            <div v-if="qpv.q13_additionalServices.includes('FortiAP')" class="p-3.5 rounded-xl bg-amber-50 border border-amber-300 text-xs text-amber-900">
+              <strong>Observação FortiAP:</strong> Caso tenha selecionado FortiAP, favor enviar planta do local de instalação para estudo de cobertura do sinal.
+            </div>
+          </div>
+
+          <!-- Rodapé de Assinatura Oficial QPV Mundivox -->
+          <div class="pt-10 print-break-avoid">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-8 items-end text-xs text-slate-600">
+              <div class="text-center sm:text-left">
+                <p>Local e Data: _________________________, {{ formatDateBR(clientInfo.date) }}</p>
+              </div>
+              <div class="text-center">
+                <div class="border-b border-slate-800 pb-1 mb-1.5 w-full"></div>
+                <strong class="uppercase tracking-wider text-slate-900">{{ clientInfo.name || 'ASSINATURA DO CLIENTE' }}</strong>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       <!-- ============================================================== -->
       <!-- TAB 3: MATRIZ DE HARDWARE, MEMÓRIA RAM & TETOS DE USUÁRIOS     -->
       <!-- ============================================================== -->
@@ -1133,7 +1165,7 @@
             asic: 'SP5',
             formFactor: 'Desktop',
             ramGb: 2,
-            maxUsersByRam: 120, // 2GB RAM c/ SP5
+            maxUsersByRam: 100, // 2GB RAM c/ SP5
             threatProtectionMbps: 1100, // 1.1 Gbps
             ngfwMbps: 1250,
             ipsMbps: 2250,
@@ -1173,7 +1205,7 @@
             asic: 'SP5',
             formFactor: 'Desktop',
             ramGb: 8,
-            maxUsersByRam: 350, // 8GB RAM (200 SSL-VPN / 350 Dispositivos RAM)
+            maxUsersByRam: 250, // 8GB RAM (250 usuários)
             threatProtectionMbps: 2200, // 2.2 Gbps
             ngfwMbps: 2500,
             ipsMbps: 4500,
@@ -1213,7 +1245,7 @@
             asic: 'NP7Lite + CP10',
             formFactor: 'Rack 1RU (Dual PSU)',
             ramGb: 16,
-            maxUsersByRam: 1000, // 16GB/24GB RAM High-End
+            maxUsersByRam: 500, // 16GB RAM High-End (500 usuários)
             threatProtectionMbps: 6000, // 6.0 Gbps
             ngfwMbps: 7000,
             ipsMbps: 9000,
@@ -1229,8 +1261,8 @@
         // Perfis Rápidos de Limite de Usuários por RAM
         function applyRamProfile(profile) {
           const limits = profile === 'ram_scaled'
-            ? { 'fg-30g': 50, 'fg-40f': 100, 'fg-60f': 150, 'fg-50g': 120, 'fg-80f': 200, 'fg-70g': 200, 'fg-90g': 350, 'fg-120g': 500, 'fg-200g': 1000 }
-            : { 'fg-30g': 50, 'fg-40f': 200, 'fg-60f': 200, 'fg-50g': 150, 'fg-80f': 200, 'fg-70g': 200, 'fg-90g': 200, 'fg-120g': 500, 'fg-200g': 500 };
+            ? { 'fg-30g': 50, 'fg-40f': 100, 'fg-50g': 100, 'fg-60f': 150, 'fg-70g': 200, 'fg-80f': 200, 'fg-90g': 250, 'fg-120g': 500, 'fg-200g': 500 }
+            : { 'fg-30g': 50, 'fg-40f': 200, 'fg-50g': 100, 'fg-60f': 200, 'fg-70g': 200, 'fg-80f': 200, 'fg-90g': 250, 'fg-120g': 500, 'fg-200g': 500 };
 
           firewallModels.forEach(box => {
             if (limits[box.id]) box.maxUsersByRam = limits[box.id];

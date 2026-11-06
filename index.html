@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MUNDIVOX | Dimensionador de Firewall QPV - FortiGate</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue.js 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            fortired: '#EE3124',
+            fortidark: '#0F172A',
+            mundiblue: '#0284C7',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #F1F5F9;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    /* Print Styles */
+    @media print {
+      body {
+        background-color: #FFFFFF !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-only {
+        display: block !important;
+      }
+      .print-break-avoid {
+        page-break-inside: avoid;
+      }
+      .shadow-lg, .shadow-xl, .shadow-md, .shadow-sm {
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-sky-600 selection:text-white">
+  <div id="app" class="min-h-screen flex flex-col">
+    
+    <!-- TOP NAVBAR (ROLA COM A PÁGINA - NÃO É FIXO/STICKY) -->
+    <header class="bg-slate-900 text-white border-b-4 border-fortired shadow-lg no-print">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap justify-between items-center gap-4">
+        <div class="flex items-center space-x-4">
+          <div class="flex items-center space-x-2">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center shadow-md font-extrabold text-xl tracking-tighter">
+              MV
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold text-lg tracking-wider text-white">MUNDIVOX</span>
+                <span class="text-xs px-2 py-0.5 rounded bg-fortired text-white font-semibold uppercase tracking-wider">Fortinet Partner</span>
+              </div>
+              <p class="text-xs text-slate-400">Sistema Inteligente de Dimensionamento QPV (Baseado em RAM, Threat Protection e Portas)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions & View Switcher -->
+        <div class="flex items-center gap-2 sm:gap-3">
+          <button 
+            @click="activeTab = 'form'" 
+            :class="activeTab === 'form' ? 'bg-sky-600 text-white shadow-sm' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+            class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 transition">
+            <i class="ph-bold ph-sliders-horizontal text-base"></i>
+            <span>Questionário QPV</span>
+          </button>
+
+          <button 
+            @click="activeTab = 'report'" 
+            :class="activeTab === 'report' ? 'bg-sky-600 text-white shadow-sm' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+            class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 transition">
+            <i class="ph-bold ph-file-text text-base"></i>
+            <span>Relatório Final</span>
+          </button>
+
+          <button 
+            @click="activeTab = 'specs'" 
+            :class="activeTab === 'specs' ? 'bg-sky-600 text-white shadow-sm' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+            class="px-3.5 py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center gap-2 transition">
+            <i class="ph-bold ph-memory text-base"></i>
+            <span class="hidden md:inline">Matriz RAM & Datasheets</span>
+          </button>
+
+          <button 
+            @click="resetForm" 
+            title="Limpar e reiniciar formulário"
+            class="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition">
+            <i class="ph-bold ph-arrow-counter-clockwise text-lg"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- TOAST MESSAGE BOX -->
+    <div v-if="toastMessage" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transition-all duration-300 no-print">
+      <i class="ph-fill ph-check-circle text-emerald-400 text-xl"></i>
+      <span class="text-sm font-medium">{{ toastMessage }}</span>
+    </div>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+      <!-- ========================================== -->
+      <!-- TAB 1: QUESTIONÁRIO QPV & CALCULADORA LIVE -->
+      <!-- ========================================== -->
+      <div v-show="activeTab === 'form'" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start no-print">
+        
+        <!-- COLUNA ESQUERDA: FORMULÁRIO QPV (7 COLUNAS) -->
+        <div class="lg:col-span-7 space-y-6">
+          
+          <!-- Banner Declaração QPV -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 px-6 py-4 flex items-center justify-between">
+              <div>
+                <span class="text-xs font-bold uppercase tracking-widest text-sky-400">Documento Oficial de Pré-Venda</span>
+                <h1 class="text-xl font-bold text-white mt-0.5">Questionário de Pré-Venda (QPV)</h1>
+              </div>
+              <i class="ph-duotone ph-shield-check text-4xl text-fortired"></i>
+            </div>
+            <div class="p-5 bg-slate-50 border-b border-slate-200 text-xs text-slate-600 leading-relaxed">
+              <strong class="text-slate-800">Declaração:</strong> Pelo presente instrumento o CLIENTE declara expressamente que as informações abaixo apresentadas são verdadeiras e está ciente de que a solução será dimensionada por estas respostas fornecidas.
+            </div>
+
+            <!-- Dados do Cliente -->
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome do Cliente / Empresa</label>
+                <input v-model="clientInfo.name" type="text" placeholder="Ex: Empresa ABC Ltda" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Responsável / Consultor</label>
+                <input v-model="clientInfo.consultant" type="text" placeholder="Ex: Engenharia Pré-Venda" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Data do Estudo</label>
+                <input v-model="clientInfo.date" type="date" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Cenários Rápidos para Teste -->
+          <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <span class="text-xs font-semibold text-slate-500 flex items-center gap-1.5">
+              <i class="ph-fill ph-lightning text-amber-500 text-base"></i>
+              Preenchimento Rápido (Exemplos):
+            </span>
+            <div class="flex flex-wrap gap-1.5">
+              <button @click="loadPreset('small')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-sky-50 hover:text-sky-700 font-medium text-slate-700 transition">Filial Pequena (400M / 35 Users)</button>
+              <button @click="loadPreset('medium')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-sky-50 hover:text-sky-700 font-medium text-slate-700 transition">Médio Porte (850M / 8 Portas)</button>
+              <button @click="loadPreset('1gbps')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-sky-50 hover:text-sky-700 font-medium text-slate-700 transition">Link 1.2 Gbps + HA</button>
+              <button @click="loadPreset('enterprise')" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-sky-50 hover:text-sky-700 font-medium text-slate-700 transition">Matriz Enterprise (2.5 Gbps / 320 Users)</button>
+            </div>
+          </div>
+
+          <!-- LISTA DAS 13 QUESTÕES DO QPV -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 divide-y divide-slate-200">
+            
+            <!-- Q1 & Q2: VPN Site-to-Site -->
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <label class="block text-sm font-semibold text-slate-800 mb-1">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-bold mr-1.5">1</span>
+                  Quantas VPN Site-to-Site serão configuradas nos equipamentos?
+                </label>
+                <p class="text-xs text-slate-500 mb-3">Fechamento de VPN entre matriz, filiais ou nuvem.</p>
+                <div class="relative">
+                  <input v-model.number="qpv.q1_vpnSiteToSite" type="number" min="0" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-sky-500 outline-none" />
+                  <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">VPNs</span>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-semibold text-slate-800 mb-1">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-bold mr-1.5">2</span>
+                  Quantos túneis serão configurados dentro destas VPNs?
+                </label>
+                <p class="text-xs text-slate-500 mb-3">Validado contra <em>Gateway-to-Gateway IPsec Tunnels</em>.</p>
+                <div class="relative">
+                  <input v-model.number="qpv.q2_vpnTunnels" type="number" min="0" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-sky-500 outline-none" />
+                  <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">Túneis</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Q3: Mobile VPN (Entra na conta de usuários) -->
+            <div class="p-6 bg-sky-50/40">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="sm:w-2/3">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">3</span>
+                    <label class="text-sm font-semibold text-slate-900">Quantos usuários utilizarão Mobile VPN?</label>
+                    <span class="text-[11px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-semibold">Soma nos Usuários</span>
+                  </div>
+                  <p class="text-xs text-slate-500">Usuários remotos conectando via FortiClient (SSL-VPN / IPsec Remoto).</p>
+                </div>
+                <div class="sm:w-1/3 relative">
+                  <input v-model.number="qpv.q3_mobileVpnUsers" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3.5 py-2.5 text-sm font-bold text-sky-950 focus:ring-2 focus:ring-sky-500 outline-none" />
+                  <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">Usuários</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Q4 & Q5: Interfaces LAN e WAN (Entram na conta de portas) -->
+            <div class="p-6 bg-indigo-50/30 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold">4</span>
+                  <label class="text-sm font-semibold text-slate-900">Quantas Interfaces LAN são necessárias?</label>
+                </div>
+                <p class="text-xs text-slate-500 mb-3">Portas físicas para conexão com switches/rede interna.</p>
+                <div class="relative">
+                  <input v-model.number="qpv.q4_lanPorts" type="number" min="1" class="w-full rounded-xl border border-indigo-300 bg-white px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">Portas LAN</span>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold">5</span>
+                  <label class="text-sm font-semibold text-slate-900">Quantas Interfaces WAN são necessárias?</label>
+                </div>
+                <p class="text-xs text-slate-500 mb-3">Portas físicas para links de internet, MPLS ou L2L.</p>
+                <div class="relative">
+                  <input v-model.number="qpv.q5_wanPorts" type="number" min="1" class="w-full rounded-xl border border-indigo-300 bg-white px-3.5 py-2.5 text-sm font-bold text-indigo-950 focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">Portas WAN</span>
+                </div>
+              </div>
+              <div class="sm:col-span-2 flex items-center justify-between bg-indigo-100/70 text-indigo-900 px-4 py-2 rounded-lg text-xs">
+                <span><i class="ph-fill ph-plugs-connected mr-1"></i> Total de interfaces físicas exigidas pela operação (Configuráveis LAN + WAN):</span>
+                <strong class="text-sm font-extrabold">{{ totalRequiredPorts }} portas físicas</strong>
+              </div>
+            </div>
+
+            <!-- Q6: Somatória das Bandas (Critério Threat Protection Throughput) -->
+            <div class="p-6 bg-rose-50/30">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="sm:w-3/5">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-fortired text-white text-xs font-bold">6</span>
+                    <label class="text-sm font-semibold text-slate-900">Qual a somatória das bandas dos links de internet?</label>
+                  </div>
+                  <p class="text-xs text-slate-600">Incluir a velocidade do MPLS/L2L, caso existam. Comparado diretamente com o <strong>Threat Protection Throughput</strong> da caixa.</p>
+                </div>
+                <div class="sm:w-2/5 flex gap-2">
+                  <input v-model.number="qpv.q6_bandwidthValue" type="number" min="1" step="any" class="w-full rounded-xl border border-rose-300 bg-white px-3.5 py-2.5 text-base font-extrabold text-slate-900 focus:ring-2 focus:ring-rose-500 outline-none" />
+                  <select v-model="qpv.q6_bandwidthUnit" class="rounded-xl border border-rose-300 bg-white px-3 py-2.5 text-sm font-bold text-slate-800 focus:ring-2 focus:ring-rose-500 outline-none">
+                    <option value="Mbps">Mbps</option>
+                    <option value="Gbps">Gbps</option>
+                  </select>
+                </div>
+              </div>
+              <!-- Quick Bandwidth Pills -->
+              <div class="mt-3 flex flex-wrap items-center gap-1.5">
+                <span class="text-[11px] text-slate-500 mr-1">Atalhos de banda:</span>
+                <button v-for="bw in [200, 500, 600, 700, 900, 1000, 1200, 1500, 2000, 3000, 5000]" :key="bw"
+                  @click="setBandwidthMbps(bw)"
+                  :class="requiredBandwidthMbps === bw ? 'bg-fortired text-white font-bold' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'"
+                  class="text-[11px] px-2 py-0.5 rounded-md transition">
+                  {{ bw >= 1000 ? (bw/1000) + ' Gbps' : bw + ' Mbps' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Q7 & Q8: Dispositivos LAN e WiFi (Entram na conta de usuários) -->
+            <div class="p-6 bg-sky-50/40 grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">7</span>
+                  <label class="text-sm font-semibold text-slate-900">Quantos dispositivos estarão conectados na rede LAN?</label>
+                </div>
+                <p class="text-xs text-slate-500 mb-2">Computadores, servidores, impressoras, coletores via cabo.</p>
+                <div class="relative">
+                  <input v-model.number="qpv.q7_lanDevices" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3.5 py-2.5 text-sm font-bold text-sky-950 focus:ring-2 focus:ring-sky-500 outline-none" />
+                  <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">Dispositivos</span>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">8</span>
+                  <label class="text-sm font-semibold text-slate-900">Quantos dispositivos via WIFI passando pelo Firewall?</label>
+                </div>
+                <p class="text-xs text-slate-500 mb-2">Smartphones, notebooks corporativos e visitantes no Wi-Fi.</p>
+                <div class="relative">
+                  <input v-model.number="qpv.q8_wifiDevices" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3.5 py-2.5 text-sm font-bold text-sky-950 focus:ring-2 focus:ring-sky-500 outline-none" />
+                  <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">Dispositivos</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Q9: Estimativa de Crescimento (%) -->
+            <div class="p-6 bg-sky-50/40">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="sm:w-2/3">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">9</span>
+                    <label class="text-sm font-semibold text-slate-900">Há estimativa (em %) de crescimento substancial entre 12 e 36 meses?</label>
+                  </div>
+                  <p class="text-xs text-slate-500">Adiciona margem percentual sobre a soma das questões 3, 7, 8 e 11.</p>
+                </div>
+                <div class="sm:w-1/3 flex items-center gap-2">
+                  <div class="relative w-full">
+                    <input v-model.number="qpv.q9_growthPercent" type="number" min="0" max="500" class="w-full rounded-xl border border-sky-300 bg-white px-3.5 py-2.5 text-sm font-bold text-sky-950 focus:ring-2 focus:ring-sky-500 outline-none" />
+                    <span class="absolute right-3.5 top-2.5 text-sm text-sky-700 font-extrabold">%</span>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3 flex items-center gap-2">
+                <input type="range" v-model.number="qpv.q9_growthPercent" min="0" max="100" step="5" class="w-full accent-sky-600 cursor-pointer" />
+                <span class="text-xs font-semibold text-slate-500 whitespace-nowrap">0% a 100%</span>
+              </div>
+            </div>
+
+            <!-- Q10: Alta Disponibilidade (HA) -->
+            <div class="p-6">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-bold">10</span>
+                <label class="text-sm font-semibold text-slate-900">Há necessidade de alta disponibilidade de hardware (Cluster HA)?</label>
+              </div>
+              <p class="text-xs text-slate-500 mb-3">Se sim, qual o modo de operação do cluster (Ativo/Passivo ou Ativo/Ativo)? Isso dimensionará automaticamente <strong>2x unidades</strong>.</p>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label 
+                  @click="qpv.q10_haMode = 'Não'"
+                  :class="qpv.q10_haMode === 'Não' ? 'border-sky-600 bg-sky-50/60 text-sky-950 ring-2 ring-sky-500/20' : 'border-slate-200 hover:bg-slate-50'"
+                  class="border rounded-xl p-3.5 cursor-pointer transition flex items-center gap-3">
+                  <input type="radio" v-model="qpv.q10_haMode" value="Não" class="text-sky-600 focus:ring-sky-500" />
+                  <div>
+                    <div class="text-xs font-bold">Não (Standalone)</div>
+                    <div class="text-[11px] text-slate-500">1x Equipamento</div>
+                  </div>
+                </label>
+
+                <label 
+                  @click="qpv.q10_haMode = 'Sim - Ativo/Passivo'"
+                  :class="qpv.q10_haMode === 'Sim - Ativo/Passivo' ? 'border-emerald-600 bg-emerald-50/60 text-emerald-950 ring-2 ring-emerald-500/20' : 'border-slate-200 hover:bg-slate-50'"
+                  class="border rounded-xl p-3.5 cursor-pointer transition flex items-center gap-3">
+                  <input type="radio" v-model="qpv.q10_haMode" value="Sim - Ativo/Passivo" class="text-emerald-600 focus:ring-emerald-500" />
+                  <div>
+                    <div class="text-xs font-bold">Sim (Ativo / Passivo)</div>
+                    <div class="text-[11px] text-emerald-700 font-semibold">2x Equipamentos (Failover)</div>
+                  </div>
+                </label>
+
+                <label 
+                  @click="qpv.q10_haMode = 'Sim - Ativo/Ativo'"
+                  :class="qpv.q10_haMode === 'Sim - Ativo/Ativo' ? 'border-emerald-600 bg-emerald-50/60 text-emerald-950 ring-2 ring-emerald-500/20' : 'border-slate-200 hover:bg-slate-50'"
+                  class="border rounded-xl p-3.5 cursor-pointer transition flex items-center gap-3">
+                  <input type="radio" v-model="qpv.q10_haMode" value="Sim - Ativo/Ativo" class="text-emerald-600 focus:ring-emerald-500" />
+                  <div>
+                    <div class="text-xs font-bold">Sim (Ativo / Ativo)</div>
+                    <div class="text-[11px] text-emerald-700 font-semibold">2x Equipamentos (Cluster)</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Q11: Telefonia VoIP / Ramais (Entra na conta de usuários) -->
+            <div class="p-6 bg-sky-50/40">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="sm:w-2/3">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs font-bold">11</span>
+                    <label class="text-sm font-semibold text-slate-900">Possui telefonia VoIP? Quantos Ramais?</label>
+                    <span class="text-[11px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-semibold">Soma nos Usuários</span>
+                  </div>
+                  <p class="text-xs text-slate-500">Cada ramal IP é contabilizado como dispositivo ativo passando pelo Firewall.</p>
+                </div>
+                <div class="sm:w-1/3 relative">
+                  <input v-model.number="qpv.q11_voipExtensions" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3.5 py-2.5 text-sm font-bold text-sky-950 focus:ring-2 focus:ring-sky-500 outline-none" />
+                  <span class="absolute right-3.5 top-2.5 text-xs text-slate-400 font-medium">Ramais VoIP</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Q12: Plano de Segurança Desejado (Apenas FortiCare ou UTP) -->
+            <div class="p-6">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-bold">12</span>
+                <label class="text-sm font-semibold text-slate-900">Qual o plano de segurança deseja (FortiCare / UTP)?</label>
+              </div>
+              <p class="text-xs text-slate-500 mb-4">Selecione o pacote de licenciamento FortiGuard desejado conforme o QPV Mundivox:</p>
+
+              <!-- Cards de Seleção Q12 (Apenas as 2 escolhas: UTP ou FortiCare) -->
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div 
+                  @click="qpv.q12_securityPlan = 'UTP (Unified Threat Protection)'"
+                  :class="qpv.q12_securityPlan === 'UTP (Unified Threat Protection)' ? 'border-2 border-fortired bg-rose-50/40 shadow-sm ring-2 ring-rose-500/10' : 'border border-slate-200 hover:bg-slate-50'"
+                  class="rounded-xl p-4 cursor-pointer transition relative">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-2">
+                      <input type="radio" :checked="qpv.q12_securityPlan === 'UTP (Unified Threat Protection)'" class="text-fortired focus:ring-fortired" />
+                      <span class="font-extrabold text-sm text-slate-900">UTP (Unified Threat Protection)</span>
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-fortired text-white">Proteção Completa</span>
+                  </div>
+                  <p class="text-xs text-slate-600 leading-relaxed pl-5">Inclui FortiCare + URL Filtering (Web Filtering) + App Control + Intrusion Prevention (IPS) + Antivirus + SSL Inspection + Sandboxing.</p>
+                </div>
+
+                <div 
+                  @click="qpv.q12_securityPlan = 'FortiCare'"
+                  :class="qpv.q12_securityPlan === 'FortiCare' ? 'border-2 border-sky-600 bg-sky-50/40 shadow-sm ring-2 ring-sky-500/10' : 'border border-slate-200 hover:bg-slate-50'"
+                  class="rounded-xl p-4 cursor-pointer transition">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <div class="flex items-center gap-2">
+                      <input type="radio" :checked="qpv.q12_securityPlan === 'FortiCare'" class="text-sky-600 focus:ring-sky-500" />
+                      <span class="font-extrabold text-sm text-slate-900">FortiCare</span>
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-200 text-slate-700">Base & SD-WAN</span>
+                  </div>
+                  <p class="text-xs text-slate-600 leading-relaxed pl-5">Inclui Suporte Oficial 24x7 + SD-WAN + Bandwidth Management + IPsec VPN.</p>
+                </div>
+              </div>
+
+              <!-- Diagrama Visual Fiel à Página 2 do PDF QPV -->
+              <div class="bg-slate-900 text-white rounded-xl p-4 overflow-x-auto">
+                <div class="text-[11px] text-slate-400 uppercase tracking-wider font-bold mb-3 text-center">
+                  Módulos Ativos na Escolha Q12: <span class="text-white">{{ qpv.q12_securityPlan }}</span>
+                </div>
+                <div class="grid grid-cols-3 sm:grid-cols-9 gap-2 text-center min-w-[540px]">
+                  <!-- FortiCare Block -->
+                  <div class="p-2 rounded-lg border border-sky-500/50 bg-sky-950/60 flex flex-col items-center">
+                    <i class="ph-duotone ph-git-branch text-xl text-sky-400 mb-1"></i>
+                    <span class="text-[10px] font-bold">SD-WAN</span>
+                    <span class="text-[9px] text-sky-300 mt-0.5">FortiCare</span>
+                  </div>
+                  <div class="p-2 rounded-lg border border-sky-500/50 bg-sky-950/60 flex flex-col items-center">
+                    <i class="ph-duotone ph-arrows-split text-xl text-sky-400 mb-1"></i>
+                    <span class="text-[10px] font-bold">Bandwidth</span>
+                    <span class="text-[9px] text-sky-300 mt-0.5">FortiCare</span>
+                  </div>
+                  <div class="p-2 rounded-lg border border-sky-500/50 bg-sky-950/60 flex flex-col items-center">
+                    <i class="ph-duotone ph-shield-checkered text-xl text-sky-400 mb-1"></i>
+                    <span class="text-[10px] font-bold">IPsec VPN</span>
+                    <span class="text-[9px] text-sky-300 mt-0.5">FortiCare</span>
+                  </div>
+                  <!-- UTP Modules (incluindo URL Filtering) -->
+                  <div :class="qpv.q12_securityPlan === 'UTP (Unified Threat Protection)' ? 'border-rose-500/50 bg-rose-950/50 opacity-100' : 'border-slate-700 bg-slate-800/40 opacity-35'" class="p-2 rounded-lg border flex flex-col items-center">
+                    <i class="ph-duotone ph-funnel text-xl text-rose-400 mb-1"></i>
+                    <span class="text-[10px] font-bold">URL Filter</span>
+                    <span class="text-[9px] text-rose-300 mt-0.5">UTP</span>
+                  </div>
+                  <div :class="qpv.q12_securityPlan === 'UTP (Unified Threat Protection)' ? 'border-rose-500/50 bg-rose-950/50 opacity-100' : 'border-slate-700 bg-slate-800/40 opacity-35'" class="p-2 rounded-lg border flex flex-col items-center">
+                    <i class="ph-duotone ph-sliders text-xl text-rose-400 mb-1"></i>
+                    <span class="text-[10px] font-bold">App Control</span>
+                    <span class="text-[9px] text-rose-300 mt-0.5">UTP</span>
+                  </div>
+                  <div :class="qpv.q12_securityPlan === 'UTP (Unified Threat Protection)' ? 'border-rose-500/50 bg-rose-950/50 opacity-100' : 'border-slate-700 bg-slate-800/40 opacity-35'" class="p-2 rounded-lg border flex flex-col items-center">
+                    <i class="ph-duotone ph-detective text-xl text-rose-400 mb-1"></i>
+                    <span class="text-[10px] font-bold">IPS</span>
+                    <span class="text-[9px] text-rose-300 mt-0.5">UTP</span>
+                  </div>
+                  <div :class="qpv.q12_securityPlan === 'UTP (Unified Threat Protection)' ? 'border-rose-500/50 bg-rose-950/50 opacity-100' : 'border-slate-700 bg-slate-800/40 opacity-35'" class="p-2 rounded-lg border flex flex-col items-center">
+                    <i class="ph-duotone ph-bug text-xl text-rose-400 mb-1"></i>
+                    <span class="text-[10px] font-bold">Antivirus</span>
+                    <span class="text-[9px] text-rose-300 mt-0.5">UTP</span>
+                  </div>
+                  <div :class="qpv.q12_securityPlan === 'UTP (Unified Threat Protection)' ? 'border-rose-500/50 bg-rose-950/50 opacity-100' : 'border-slate-700 bg-slate-800/40 opacity-35'" class="p-2 rounded-lg border flex flex-col items-center">
+                    <i class="ph-duotone ph-lock-key text-xl text-rose-400 mb-1"></i>
+                    <span class="text-[10px] font-bold">SSL Inspect</span>
+                    <span class="text-[9px] text-rose-300 mt-0.5">UTP</span>
+                  </div>
+                  <div :class="qpv.q12_securityPlan === 'UTP (Unified Threat Protection)' ? 'border-rose-500/50 bg-rose-950/50 opacity-100' : 'border-slate-700 bg-slate-800/40 opacity-35'" class="p-2 rounded-lg border flex flex-col items-center">
+                    <i class="ph-duotone ph-cube-transparent text-xl text-rose-400 mb-1"></i>
+                    <span class="text-[10px] font-bold">Sandbox</span>
+                    <span class="text-[9px] text-rose-300 mt-0.5">UTP</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Q13: Serviços Adicionais -->
+            <div class="p-6">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-800 text-white text-xs font-bold">13</span>
+                <label class="text-sm font-semibold text-slate-900">Quais serviços adicionais deseja?</label>
+              </div>
+              <p class="text-xs text-slate-500 mb-4">Marque caso o projeto demande gerência centralizada, retenção de logs ou equipamentos de acesso:</p>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                  <input type="checkbox" :checked="qpv.q13_additionalServices.length === 0" @change="clearAdditionalServices" class="rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
+                  <span class="text-xs font-semibold text-slate-700">Não desejo adicionais</span>
+                </label>
+
+                <label v-for="srv in ['FortiAP', 'FortiSwitch', 'FortiAnalyzer', 'FortiManager']" :key="srv"
+                  :class="qpv.q13_additionalServices.includes(srv) ? 'border-sky-600 bg-sky-50/60 text-sky-900' : 'border-slate-200 hover:bg-slate-50'"
+                  class="flex items-center gap-2.5 p-3 rounded-xl border cursor-pointer transition">
+                  <input type="checkbox" :value="srv" v-model="qpv.q13_additionalServices" class="rounded text-sky-600 focus:ring-sky-500 w-4 h-4" />
+                  <span class="text-xs font-bold">{{ srv }}</span>
+                </label>
+              </div>
+
+              <!-- Alerta Oficial Planta Baixa se FortiAP marcado -->
+              <div v-if="qpv.q13_additionalServices.includes('FortiAP')" class="mt-4 bg-amber-50 border-l-4 border-amber-500 p-3.5 rounded-r-xl flex items-start gap-3">
+                <i class="ph-fill ph-warning-circle text-amber-600 text-xl mt-0.5"></i>
+                <div class="text-xs text-amber-900">
+                  <strong>Aviso Importante do QPV (FortiAP):</strong> Caso tenha selecionado FortiAP, favor enviar planta do local de instalação para estudo de cobertura do sinal.
+                </div>
+              </div>
+            </div>
+        <!-- COLUNA DIREITA: PAINEL DE DIMENSIONAMENTO EM TEMPO REAL (5 COLUNAS) -->
+        <div class="lg:col-span-5 lg:sticky lg:top-6 space-y-5">
+          
+          <!-- CARD PRINCIPAL: CAIXA RECOMENDADA -->
+          <div class="bg-white rounded-2xl shadow-xl border-2 border-slate-900 overflow-hidden">
+            
+            <!-- Header do Card -->
+            <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <h2 class="text-sm font-bold uppercase tracking-wider">Resultado do Dimensionamento</h2>
+              </div>
+              <span class="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-md font-mono">
+                Baseado em RAM & Banda
+              </span>
+            </div>
+
+            <!-- Caso Nenhuma Caixa Atenda (Acima do 200G) -->
+            <div v-if="!recommendedBox" class="p-6 bg-rose-50 text-center space-y-3">
+              <i class="ph-duotone ph-warning-octagon text-5xl text-fortired mx-auto"></i>
+              <h3 class="text-lg font-extrabold text-rose-950">Demanda Acima da Linha 200G</h3>
+              <p class="text-xs text-rose-800 leading-relaxed">
+                Os parâmetros inseridos ({{ requiredBandwidthMbps }} Mbps / {{ totalUsersWithGrowth }} Usuários / {{ totalRequiredPorts }} Portas) ultrapassam a capacidade máxima parametrizada para o <strong>FortiGate 200G</strong>.
+              </p>
+              <div class="p-3 bg-white rounded-xl border border-rose-200 text-xs text-slate-700 font-medium">
+                Recomendação: Escalar projeto para linha <strong>FortiGate 400F / 600F</strong> ou ajustar limites na aba <em>Matriz RAM & Datasheets</em>.
+              </div>
+            </div>
+
+            <!-- Caixa Recomendada Encontrada -->
+            <div v-else class="p-6 space-y-5">
+              
+              <div class="flex items-start justify-between gap-4 border-b border-slate-100 pb-5">
+                <div>
+                  <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800 uppercase tracking-wide">
+                      Caixa Ideal Dimensionada
+                    </span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
+                      {{ recommendedBox.ramGb }} GB RAM
+                    </span>
+                    <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700">
+                      {{ recommendedBox.formFactor }}
+                    </span>
+                  </div>
+                  <h3 class="text-3xl font-black text-slate-900 tracking-tight">
+                    {{ recommendedQuantity }}x {{ recommendedBox.name }}
+                  </h3>
+                  <p class="text-xs font-medium text-slate-500 mt-1">
+                    SKU Base: <strong class="text-slate-800">{{ recommendedBox.sku }}</strong>
+                    <span v-if="qpv.q13_additionalServices.includes('FortiAnalyzer')" class="text-sky-700 font-semibold">
+                      (Ou {{ recommendedBox.ssdVariant }} com Disco SSD local)
+                    </span>
+                  </p>
+                </div>
+
+                <!-- Badge Quantidade / HA -->
+                <div :class="recommendedQuantity === 2 ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'" class="px-3.5 py-2.5 rounded-xl text-center shrink-0 shadow-sm">
+                  <div class="text-xl font-black leading-none">{{ recommendedQuantity }} UN</div>
+                  <div class="text-[10px] font-semibold uppercase tracking-wider mt-1 opacity-90">
+                    {{ recommendedQuantity === 2 ? 'Cluster HA' : 'Standalone' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- OS 4 PILARES DE VALIDAÇÃO (MEMÓRIA DE CÁLCULO) -->
+              <div class="space-y-3">
+                <div class="text-xs font-bold uppercase tracking-wider text-slate-400">Memória de Cálculo do QPV</div>
+
+                <!-- 1. Banda Threat Protection -->
+                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div class="flex justify-between items-center text-xs mb-1">
+                    <span class="font-bold text-slate-700 flex items-center gap-1.5">
+                      <i class="ph-fill ph-gauge text-fortired text-base"></i>
+                      1. Banda (Questão 6 vs Threat Protection)
+                    </span>
+                    <span class="font-extrabold text-slate-900">
+                      {{ formatMbps(requiredBandwidthMbps) }} <span class="text-slate-400 font-normal">de</span> {{ formatMbps(recommendedBox.threatProtectionMbps) }}
+                    </span>
+                  </div>
+                  <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div class="bg-fortired h-full rounded-full transition-all duration-300" :style="{ width: Math.min(100, (requiredBandwidthMbps / recommendedBox.threatProtectionMbps) * 100) + '%' }"></div>
+                  </div>
+                  <div class="flex justify-between text-[11px] text-slate-500 mt-1">
+                    <span>Ocupação Threat Protection: <strong>{{ Math.round((requiredBandwidthMbps / recommendedBox.threatProtectionMbps) * 100) }}%</strong></span>
+                    <span>IPS: {{ formatMbps(recommendedBox.ipsMbps) }} | NGFW: {{ formatMbps(recommendedBox.ngfwMbps) }}</span>
+                  </div>
+                </div>
+
+                <!-- 2. Usuários + Crescimento (BASEADO EM MEMÓRIA RAM) -->
+                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div class="flex justify-between items-center text-xs mb-1">
+                    <span class="font-bold text-slate-700 flex items-center gap-1.5">
+                      <i class="ph-fill ph-memory text-sky-600 text-base"></i>
+                      2. Usuários por Memória RAM ({{ recommendedBox.ramGb }} GB RAM)
+                    </span>
+                    <span class="font-extrabold text-sky-900">
+                      {{ totalUsersWithGrowth }} <span class="text-slate-400 font-normal">de</span> {{ recommendedBox.maxUsersByRam }} máx
+                    </span>
+                  </div>
+                  <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-1.5">
+                    <div class="bg-sky-600 h-full rounded-full transition-all duration-300" :style="{ width: Math.min(100, (totalUsersWithGrowth / recommendedBox.maxUsersByRam) * 100) + '%' }"></div>
+                  </div>
+                  <p class="text-[11px] text-slate-600">
+                    Soma Base: <strong>{{ baseUsers }}</strong> ({{ qpv.q3_mobileVpnUsers }} VPN + {{ qpv.q7_lanDevices }} LAN + {{ qpv.q8_wifiDevices }} WiFi + {{ qpv.q11_voipExtensions }} VoIP) + <strong>{{ qpv.q9_growthPercent }}%</strong> cresc. = <strong>{{ totalUsersWithGrowth }} usuários</strong>
+                  </p>
+                  <div class="mt-1 text-[11px] font-semibold text-emerald-700 flex items-center justify-between">
+                    <span class="flex items-center gap-1">
+                      <i class="ph-fill ph-check-circle text-emerald-600"></i>
+                      Capacidade RAM ({{ recommendedBox.ramGb }} GB): suporta até <strong>{{ recommendedBox.maxUsersByRam }} usuários</strong>
+                    </span>
+                    <button @click="activeTab = 'specs'" class="text-[10px] text-sky-700 underline hover:text-sky-900">Ajustar RAM</button>
+                  </div>
+                </div>
+
+                <!-- 3. Portas Físicas Configuráveis -->
+                <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div class="flex justify-between items-center text-xs mb-1">
+                    <span class="font-bold text-slate-700 flex items-center gap-1.5">
+                      <i class="ph-fill ph-plugs text-indigo-600 text-base"></i>
+                      3. Interfaces Físicas (Q4 LAN + Q5 WAN)
+                    </span>
+                    <span class="font-extrabold text-indigo-950">
+                      {{ totalRequiredPorts }} exigidas / {{ recommendedBox.totalConfigurablePorts }} na caixa
+                    </span>
+                  </div>
+                  <p class="text-[11px] text-slate-600">
+                    Pedidas: <strong>{{ qpv.q4_lanPorts }} LAN + {{ qpv.q5_wanPorts }} WAN = {{ totalRequiredPorts }} portas</strong>.
+                  </p>
+                  <p class="text-[11px] text-slate-500 mt-0.5">
+                    Físicas na caixa: {{ recommendedBox.portsDescription }}
+                  </p>
+                </div>
+
+                <!-- 4. VPN Site-to-Site & Licenciamento -->
+                <div class="grid grid-cols-2 gap-2.5 text-xs">
+                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span class="text-[11px] text-slate-500 block">Túneis VPN (Q1/Q2)</span>
+                    <strong class="text-slate-800">{{ qpv.q2_vpnTunnels }} / {{ recommendedBox.maxSiteToSiteTunnels }} máx</strong>
+                  </div>
+                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span class="text-[11px] text-slate-500 block">Plano Segurança (Q12)</span>
+                    <strong class="text-slate-800 truncate block">{{ qpv.q12_securityPlan }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Opções de Variantes (WiFi / PoE / SSD) do Datasheet -->
+              <div class="bg-sky-50/70 border border-sky-200/80 rounded-xl p-3.5 text-xs space-y-1">
+                <div class="font-bold text-sky-950 flex items-center gap-1.5">
+                  <i class="ph-fill ph-sparkle text-sky-600"></i>
+                  Variantes disponíveis no Datasheet para {{ recommendedBox.name }}:
+                </div>
+                <p class="text-slate-600 text-[11px] leading-relaxed">
+                  • <strong>Com Disco SSD (Logs locais):</strong> {{ recommendedBox.ssdVariant }}<br/>
+                  <span v-if="recommendedBox.wifiVariant">• <strong>Com Wi-Fi 6 Integrado:</strong> {{ recommendedBox.wifiVariant }}<br/></span>
+                  <span v-if="recommendedBox.poeVariant">• <strong>Com Portas PoE+:</strong> {{ recommendedBox.poeVariant }}</span>
+                </p>
+              </div>
+
+              <!-- Botões de Ação -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <button 
+                  @click="activeTab = 'report'" 
+                  class="w-full py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition">
+                  <i class="ph-bold ph-printer text-base"></i>
+                  <span>Ver Relatório QPV / Imprimir</span>
+                </button>
+                <button 
+                  @click="copySummaryToClipboard" 
+                  class="w-full py-3 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition">
+                  <i class="ph-bold ph-copy text-base"></i>
+                  <span>Copiar Resumo Técnico</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- CARD SECUNDÁRIO: MATRIZ DE AVALIAÇÃO DAS 9 CAIXAS -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-5 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+              <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+                Status de Todas as Caixas (RAM / Banda / Portas)
+              </h3>
+              <label class="flex items-center gap-1.5 text-[11px] text-slate-600 cursor-pointer">
+                <input type="checkbox" v-model="onlyGSeries" class="rounded text-sky-600 focus:ring-sky-500" />
+                <span>Priorizar apenas Série G</span>
+              </label>
+            </div>
+            <div class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+              <div v-for="box in evaluatedBoxes" :key="box.id" 
+                :class="recommendedBox && recommendedBox.id === box.id ? 'bg-emerald-50/70' : ''"
+                class="px-4 py-2.5 flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2.5">
+                  <span v-if="recommendedBox && recommendedBox.id === box.id" class="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[11px] font-bold" title="Caixa Escolhida">
+                    <i class="ph-bold ph-star"></i>
+                  </span>
+                  <span v-else-if="box.passedAll" class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[11px] font-bold" title="Atende, mas é de porte superior">
+                    <i class="ph-bold ph-check"></i>
+                  </span>
+                  <span v-else class="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center text-[11px] font-bold" title="Reprovada">
+                    <i class="ph-bold ph-x"></i>
+                  </span>
+
+                  <div>
+                    <div class="font-bold text-slate-800 flex items-center gap-1.5">
+                      {{ box.name }}
+                      <span class="text-[10px] px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-semibold">{{ box.ramGb }}GB RAM</span>
+                      <span v-if="recommendedBox && recommendedBox.id === box.id" class="text-[10px] bg-emerald-600 text-white px-1.5 py-0.2 rounded font-bold">IDEAL</span>
+                    </div>
+                    <div class="text-[11px] text-slate-500">
+                      Threat: {{ formatMbps(box.threatProtectionMbps) }} | {{ box.totalConfigurablePorts }} Portas | Máx: {{ box.maxUsersByRam }} Users
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Motivo de Aprovação ou Reprovação -->
+                <div class="text-right">
+                  <span v-if="recommendedBox && recommendedBox.id === box.id" class="text-[11px] font-bold text-emerald-700">
+                    Menor porte que atende 100%
+                  </span>
+                  <span v-else-if="box.passedAll" class="text-[11px] font-medium text-slate-500">
+                    Atende (Porte superior)
+                  </span>
+                  <div v-else class="flex flex-col items-end gap-0.5">
+                    <span v-for="(reason, idx) in box.failReasons" :key="idx" class="text-[10px] px-1.5 py-0.5 rounded bg-rose-50 text-rose-700 font-semibold border border-rose-200">
+                      {{ reason }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: RELATÓRIO EXECUTIVO QPV (IMPRESSÃO) -->
+      <!-- ========================================== -->
+      <div v-show="activeTab === 'report'" class="space-y-6">
+        
+        <!-- Barra de Controle do Relatório (No-Print) -->
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 no-print">
+          <div class="flex items-center gap-3">
+            <button @click="activeTab = 'form'" class="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition">
+              <i class="ph-bold ph-arrow-left"></i>
+              <span>Voltar ao Questionário</span>
+            </button>
+            <span class="text-xs text-slate-500">Visualização oficial do QPV preenchido com o dimensionamento técnico anexado.</span>
+          </div>
+          <div class="flex items-center gap-2.5">
+            <button @click="copySummaryToClipboard" class="px-4 py-2 rounded-lg bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-bold flex items-center gap-1.5 transition">
+              <i class="ph-bold ph-copy"></i>
+              <span>Copiar Texto para E-mail/WhatsApp</span>
+            </button>
+            <button @click="printReport" class="px-4 py-2 rounded-lg bg-fortired hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+              <i class="ph-bold ph-printer"></i>
+              <span>Imprimir / Salvar em PDF</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- FOLHA A4 DO DOCUMENTO QPV MUNDIVOX -->
+        <div class="bg-white rounded-2xl shadow-lg border border-slate-200 p-8 sm:p-10 max-w-4xl mx-auto space-y-8">
+          
+          <!-- Cabeçalho do Documento -->
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-slate-900 pb-6">
+            <div>
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-base">MV</div>
+                <span class="text-2xl font-black tracking-wider text-slate-900">MUNDIVOX</span>
+              </div>
+              <h2 class="text-lg font-bold text-slate-800 mt-1">Questionário de Pré-Venda (QPV) & Dimensionamento FortiGate</h2>
+            </div>
+            <div class="text-xs text-slate-600 sm:text-right space-y-1">
+              <div><strong>Cliente:</strong> {{ clientInfo.name || 'Não informado' }}</div>
+              <div><strong>Responsável:</strong> {{ clientInfo.consultant || 'Engenharia de Pré-Venda' }}</div>
+              <div><strong>Data:</strong> {{ formatDateBR(clientInfo.date) }}</div>
+            </div>
+          </div>
+
+          <!-- Declaração Oficial -->
+          <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 italic leading-relaxed">
+            "Pelo presente instrumento o CLIENTE declara expressamente que as informações abaixo apresentadas são verdadeiras e está ciente de que a solução será dimensionada por estas respostas fornecidas."
+          </div>
+
+          <!-- BOX DE DESTAQUE: SOLUÇÃO DIMENSIONADA -->
+          <div v-if="recommendedBox" class="p-6 rounded-2xl bg-slate-900 text-white print:bg-slate-100 print:text-slate-900 print:border-2 print:border-slate-900 print-break-avoid">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700 print:border-slate-300 pb-4 mb-4">
+              <div>
+                <span class="text-[11px] uppercase tracking-widest text-sky-400 print:text-sky-700 font-bold">Equipamento Dimensionado</span>
+                <h3 class="text-2xl font-black mt-0.5">
+                  {{ recommendedQuantity }}x {{ recommendedBox.name }} ({{ recommendedBox.sku }})
+                </h3>
+                <p class="text-xs text-slate-300 print:text-slate-600 mt-0.5">
+                  Modo de Operação: <strong>{{ qpv.q10_haMode === 'Não' ? 'Standalone (1 Caixa)' : 'Cluster HA ' + qpv.q10_haMode + ' (2 Caixas)' }}</strong> | Plano: <strong>{{ qpv.q12_securityPlan }}</strong>
+                </p>
+              </div>
+              <div class="text-left sm:text-right">
+                <div class="text-xs text-slate-400 print:text-slate-600">Threat Protection Suportado</div>
+                <div class="text-xl font-black text-emerald-400 print:text-emerald-700">{{ formatMbps(recommendedBox.threatProtectionMbps) }}</div>
+              </div>
+            </div>
+
+            <!-- Resumo da Memória de Cálculo no Relatório -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+              <div class="p-3 rounded-lg bg-slate-800 print:bg-white print:border print:border-slate-300">
+                <span class="text-slate-400 print:text-slate-500 block text-[11px]">Banda Exigida (Q6)</span>
+                <strong class="text-sm">{{ formatMbps(requiredBandwidthMbps) }}</strong>
+                <span class="block text-[10px] text-emerald-400 print:text-emerald-700">Caixa suporta {{ formatMbps(recommendedBox.threatProtectionMbps) }}</span>
+              </div>
+              <div class="p-3 rounded-lg bg-slate-800 print:bg-white print:border print:border-slate-300">
+                <span class="text-slate-400 print:text-slate-500 block text-[11px]">Usuários + Cresc. ({{ qpv.q9_growthPercent }}%)</span>
+                <strong class="text-sm">{{ totalUsersWithGrowth }} dispositivos</strong>
+                <span class="block text-[10px] text-emerald-400 print:text-emerald-700">
+                  RAM ({{ recommendedBox.ramGb }}GB): Máx {{ recommendedBox.maxUsersByRam }} Users
+                </span>
+              </div>
+              <div class="p-3 rounded-lg bg-slate-800 print:bg-white print:border print:border-slate-300">
+                <span class="text-slate-400 print:text-slate-500 block text-[11px]">Portas Físicas (Q4+Q5)</span>
+                <strong class="text-sm">{{ totalRequiredPorts }} portas ({{ qpv.q4_lanPorts }}L / {{ qpv.q5_wanPorts }}W)</strong>
+                <span class="block text-[10px] text-emerald-400 print:text-emerald-700">Caixa possui {{ recommendedBox.totalConfigurablePorts }} portas</span>
+              </div>
+              <div class="p-3 rounded-lg bg-slate-800 print:bg-white print:border print:border-slate-300">
+                <span class="text-slate-400 print:text-slate-500 block text-[11px]">Serviços Adicionais (Q13)</span>
+                <strong class="text-sm">{{ qpv.q13_additionalServices.length ? qpv.q13_additionalServices.join(', ') : 'Nenhum' }}</strong>
+                <span class="block text-[10px] text-sky-300 print:text-sky-700">Var. SSD: {{ recommendedBox.ssdVariant }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- TABELA COM AS 13 PERGUNTAS E RESPOSTAS DO QPV -->
+          <div class="space-y-3">
+            <h4 class="text-sm font-extrabold uppercase tracking-wider text-slate-800 border-b border-slate-200 pb-2">
+              Respostas Registradas no Questionário de Pré-Venda (QPV)
+            </h4>
+
+            <div class="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden text-xs">
+              <div class="p-3.5 flex justify-between items-center bg-white">
+                <span class="font-medium text-slate-700"><strong>1 -</strong> Quantas VPN Site-to-Site serão configuradas nos equipamentos?</span>
+                <span class="font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-md">R: {{ qpv.q1_vpnSiteToSite }} VPN(s)</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-slate-50/50">
+                <span class="font-medium text-slate-700"><strong>2 -</strong> Quantos túneis serão configurados dentro destas VPNs?</span>
+                <span class="font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-md">R: {{ qpv.q2_vpnTunnels }} Túnel(is)</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-white">
+                <span class="font-medium text-slate-700"><strong>3 -</strong> Quantos usuários utilizarão Mobile VPN? <em>(Compõe cálculo de usuários)</em></span>
+                <span class="font-bold text-sky-900 bg-sky-100 px-3 py-1 rounded-md">R: {{ qpv.q3_mobileVpnUsers }} usuários</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-slate-50/50">
+                <span class="font-medium text-slate-700"><strong>4 -</strong> Quantas Interfaces LAN são necessárias? <em>(Compõe cálculo de portas)</em></span>
+                <span class="font-bold text-indigo-900 bg-indigo-100 px-3 py-1 rounded-md">R: {{ qpv.q4_lanPorts }} interface(s) LAN</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-white">
+                <span class="font-medium text-slate-700"><strong>5 -</strong> Quantas Interfaces WAN são necessárias para os links de internet? <em>(Compõe cálculo de portas)</em></span>
+                <span class="font-bold text-indigo-900 bg-indigo-100 px-3 py-1 rounded-md">R: {{ qpv.q5_wanPorts }} interface(s) WAN</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-slate-50/50">
+                <span class="font-medium text-slate-700"><strong>6 -</strong> Qual a somatória das bandas dos links de internet? (Incluindo MPLS/L2L)</span>
+                <span class="font-bold text-rose-900 bg-rose-100 px-3 py-1 rounded-md">R: {{ qpv.q6_bandwidthValue }} {{ qpv.q6_bandwidthUnit }} ({{ requiredBandwidthMbps }} Mbps)</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-white">
+                <span class="font-medium text-slate-700"><strong>7 -</strong> Quantos dispositivos estarão conectados na rede LAN? <em>(Compõe cálculo de usuários)</em></span>
+                <span class="font-bold text-sky-900 bg-sky-100 px-3 py-1 rounded-md">R: {{ qpv.q7_lanDevices }} dispositivos</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-slate-50/50">
+                <span class="font-medium text-slate-700"><strong>8 -</strong> Quantos dispositivos estarão conectados via WIFI passando pelo Firewall? <em>(Compõe cálculo de usuários)</em></span>
+                <span class="font-bold text-sky-900 bg-sky-100 px-3 py-1 rounded-md">R: {{ qpv.q8_wifiDevices }} dispositivos</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-white">
+                <span class="font-medium text-slate-700"><strong>9 -</strong> Há estimativa (em %) de crescimento substancial no período entre 12 e 36 meses?</span>
+                <span class="font-bold text-sky-900 bg-sky-100 px-3 py-1 rounded-md">R: {{ qpv.q9_growthPercent }}% (Total projetado: {{ totalUsersWithGrowth }} disp.)</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-slate-50/50">
+                <span class="font-medium text-slate-700"><strong>10 -</strong> Há necessidade de alta disponibilidade de hardware (HA)? Qual o modo de operação?</span>
+                <span class="font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-md">R: {{ qpv.q10_haMode }} ({{ recommendedQuantity }}x Caixas)</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-white">
+                <span class="font-medium text-slate-700"><strong>11 -</strong> Possui telefonia VoIP? Quantos Ramais? <em>(Compõe cálculo de usuários)</em></span>
+                <span class="font-bold text-sky-900 bg-sky-100 px-3 py-1 rounded-md">R: {{ qpv.q11_voipExtensions > 0 ? 'Sim, ' + qpv.q11_voipExtensions + ' ramais' : 'Não possui (0 ramais)' }}</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-slate-50/50">
+                <span class="font-medium text-slate-700"><strong>12 -</strong> Qual o plano de segurança deseja (FortiCare / UTP)?</span>
+                <span class="font-bold text-slate-900 bg-slate-100 px-3 py-1 rounded-md">R: {{ qpv.q12_securityPlan }}</span>
+              </div>
+              <div class="p-3.5 flex justify-between items-center bg-white">
+                <span class="font-medium text-slate-700"><strong>13 -</strong> Quais serviços adicionais deseja?</span>
+      <!-- ============================================================== -->
+      <!-- TAB 3: MATRIZ DE HARDWARE, MEMÓRIA RAM & TETOS DE USUÁRIOS     -->
+      <!-- ============================================================== -->
+      <div v-show="activeTab === 'specs'" class="space-y-6 no-print">
+        <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200">
+            <div>
+              <span class="text-xs font-bold uppercase tracking-wider text-sky-600">Parametrização de Engenharia</span>
+              <h2 class="text-lg font-extrabold text-slate-900">Matriz de Memória RAM vs Limite Máximo de Usuários</h2>
+              <p class="text-xs text-slate-500 mt-0.5">
+                A <strong>FortiGate 30G</strong> está cravada em <strong>50 usuários</strong>. Você pode alternar entre as réguas pré-definidas de RAM ou ajustar manualmente o limite de usuários de cada modelo abaixo:
+              </p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button @click="applyRamProfile('ram_scaled')" class="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition">
+                Padrão Escalonado por RAM (30G = 50)
+              </button>
+              <button @click="applyRamProfile('datasheet_strict')" class="px-3 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-bold transition">
+                30G = 50 | Demais = 200 / 500
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-900 text-white uppercase tracking-wider text-[11px]">
+                  <th class="p-3 rounded-tl-xl">Modelo / Série</th>
+                  <th class="p-3">Memória RAM</th>
+                  <th class="p-3 bg-sky-900">Máx. Usuários (Base RAM)</th>
+                  <th class="p-3">Threat Protection (Q6)</th>
+                  <th class="p-3">NGFW / IPS</th>
+                  <th class="p-3">Portas Config. (Q4+Q5)</th>
+                  <th class="p-3">Detalhamento das Portas</th>
+                  <th class="p-3 rounded-tr-xl">Variantes (SSD / WiFi)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200">
+                <tr v-for="box in firewallModels" :key="box.id" class="hover:bg-slate-50">
+                  <td class="p-3.5 font-extrabold text-slate-900 whitespace-nowrap">
+                    {{ box.name }}
+                    <span class="block text-[10px] font-normal text-slate-500">{{ box.formFactor }} ({{ box.asic }})</span>
+                  </td>
+                  <td class="p-3.5 whitespace-nowrap">
+                    <div class="flex items-center gap-1">
+                      <input v-model.number="box.ramGb" type="number" min="1" class="w-14 rounded-lg border border-slate-300 px-2 py-1 text-xs font-extrabold text-slate-800 text-center" />
+                      <span class="font-bold text-slate-600">GB</span>
+                    </div>
+                  </td>
+                  <td class="p-3.5 bg-sky-50/60 whitespace-nowrap">
+                    <div class="flex items-center gap-1.5">
+                      <input v-model.number="box.maxUsersByRam" type="number" min="1" class="w-20 rounded-lg border border-sky-400 bg-white px-2.5 py-1 text-xs font-black text-sky-950 text-center focus:ring-2 focus:ring-sky-500 outline-none" />
+                      <span class="text-[11px] font-semibold text-sky-800">usuários</span>
+                    </div>
+                  </td>
+                  <td class="p-3.5 font-extrabold text-fortired whitespace-nowrap">
+                    {{ formatMbps(box.threatProtectionMbps) }}
+                  </td>
+                  <td class="p-3.5 text-slate-700 whitespace-nowrap">
+                    NGFW: {{ formatMbps(box.ngfwMbps) }}<br/>
+                    <span class="text-slate-500">IPS: {{ formatMbps(box.ipsMbps) }}</span>
+                  </td>
+                  <td class="p-3.5 font-bold text-indigo-900">
+                    {{ box.totalConfigurablePorts }} portas
+                  </td>
+                  <td class="p-3.5 text-slate-600 max-w-xs">
+                    {{ box.portsDescription }}
+                  </td>
+                  <td class="p-3.5 text-[11px] text-slate-600">
+                    <strong>SSD:</strong> {{ box.ssdVariant }}<br/>
+                    <span v-if="box.wifiVariant"><strong>WiFi:</strong> {{ box.wifiVariant }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed } = Vue;
+
+    createApp({
+      setup() {
+        const activeTab = ref('form');
+        const toastMessage = ref('');
+        const onlyGSeries = ref(false);
+
+        // Informações de Cabeçalho do Cliente
+        const clientInfo = reactive({
+          name: '',
+          consultant: '',
+          date: new Date().toISOString().substr(0, 10)
+        });
+
+        // Estado das 13 Questões do QPV Mundivox
+        const qpv = reactive({
+          q1_vpnSiteToSite: 1,
+          q2_vpnTunnels: 2,
+          q3_mobileVpnUsers: 5,
+          q4_lanPorts: 2,
+          q5_wanPorts: 1,
+          q6_bandwidthValue: 400,
+          q6_bandwidthUnit: 'Mbps',
+          q7_lanDevices: 20,
+          q8_wifiDevices: 10,
+          q9_growthPercent: 15,
+          q10_haMode: 'Não',
+          q11_voipExtensions: 5,
+          q12_securityPlan: 'UTP (Unified Threat Protection)',
+          q13_additionalServices: []
+        });
+
+        // BASE DE CONHECIMENTO EXTRAÍDA DOS 8 DATASHEETS EM PDF + MEMÓRIA RAM
+        // A 30G possui limite máximo cravado em 50 usuários; as demais seguem a Memória RAM e especificações
+        const firewallModels = reactive([
+          {
+            id: 'fg-30g',
+            name: 'FortiGate 30G',
+            sku: 'FG-30G',
+            series: 'G',
+            tierOrder: 1,
+            asic: 'SoC4 / SP4',
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 50, // Cravado em 50 usuários conforme solicitado
+            threatProtectionMbps: 500,
+            ngfwMbps: 570,
+            ipsMbps: 800,
+            totalConfigurablePorts: 4,
+            portsDescription: '4x GE RJ45 (1x WAN + 2x Internas + 1x FortiLink configuráveis)',
+            maxSiteToSiteTunnels: 200,
+            ssdVariant: 'FG-31G (30GB SSD)',
+            wifiVariant: 'FWF-30G / FWF-31G',
+            poeVariant: null
+          },
+          {
+            id: 'fg-40f',
+            name: 'FortiGate 40F',
+            sku: 'FG-40F',
+            series: 'F',
+            tierOrder: 2,
+            asic: 'SoC4 / SP4',
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 100, // 2GB RAM (Editável na matriz)
+            threatProtectionMbps: 600,
+            ngfwMbps: 800,
+            ipsMbps: 1000,
+            totalConfigurablePorts: 5,
+            portsDescription: '5x GE RJ45 (1x WAN + 3x Internas + 1x FortiLink configuráveis)',
+            maxSiteToSiteTunnels: 200,
+            ssdVariant: 'N/A (Sem variante SSD)',
+            wifiVariant: 'FWF-40F / FG-40F-3G4G',
+            poeVariant: null
+          },
+          {
+            id: 'fg-60f',
+            name: 'FortiGate 60F',
+            sku: 'FG-60F',
+            series: 'F',
+            tierOrder: 3,
+            asic: 'SoC4 / SP4',
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 150, // 2GB RAM
+            threatProtectionMbps: 700,
+            ngfwMbps: 1000,
+            ipsMbps: 1400,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x GE RJ45 (2x WAN + 1x DMZ + 5x Internas + 2x FortiLink configuráveis)',
+            maxSiteToSiteTunnels: 200,
+            ssdVariant: 'FG-61F (128GB SSD)',
+            wifiVariant: 'FWF-60F / FWF-61F',
+            poeVariant: null
+          },
+          {
+            id: 'fg-80f',
+            name: 'FortiGate 80F',
+            sku: 'FG-80F',
+            series: 'F',
+            tierOrder: 4,
+            asic: 'SoC4 / SP4',
+            formFactor: 'Desktop',
+            ramGb: 4,
+            maxUsersByRam: 200, // 4GB RAM
+            threatProtectionMbps: 900,
+            ngfwMbps: 1000,
+            ipsMbps: 1400,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x Portas (2x GE RJ45/SFP Shared WAN + 6x GE Internas + 2x FortiLink)',
+            maxSiteToSiteTunnels: 200,
+            ssdVariant: 'FG-81F (128GB SSD)',
+            wifiVariant: 'FWF-80F / FG-80F-DSL',
+            poeVariant: 'FG-80F-POE / FG-81F-POE'
+          },
+          {
+            id: 'fg-50g',
+            name: 'FortiGate 50G',
+            sku: 'FG-50G',
+            series: 'G',
+            tierOrder: 5,
+            asic: 'SP5',
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 120, // 2GB RAM c/ SP5
+            threatProtectionMbps: 1100, // 1.1 Gbps
+            ngfwMbps: 1250,
+            ipsMbps: 2250,
+            totalConfigurablePorts: 5,
+            portsDescription: '5x GE RJ45 (1x WAN + 3x Internas + 1x FortiLink) [Var. SFP possui 6 portas]',
+            maxSiteToSiteTunnels: 200,
+            ssdVariant: 'FG-51G (64GB SSD)',
+            wifiVariant: 'FWF-50G / FWF-51G / FG-50G-5G',
+            poeVariant: 'FG-50G-SFP-POE / FG-51G-SFP-POE'
+          },
+          {
+            id: 'fg-70g',
+            name: 'FortiGate 70G',
+            sku: 'FG-70G',
+            series: 'G',
+            tierOrder: 6,
+            asic: 'SP5',
+            formFactor: 'Desktop',
+            ramGb: 4,
+            maxUsersByRam: 200, // 4GB RAM c/ SP5
+            threatProtectionMbps: 1300, // 1.3 Gbps
+            ngfwMbps: 1500,
+            ipsMbps: 2500,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x GE RJ45 (2x WAN + 6x Internas + 2x FortiLink configuráveis)',
+            maxSiteToSiteTunnels: 200,
+            ssdVariant: 'FG-71G (64GB SSD)',
+            wifiVariant: 'FWF-70G / FWF-71G',
+            poeVariant: 'FG-70G-POE / FG-71G-POE'
+          },
+          {
+            id: 'fg-90g',
+            name: 'FortiGate 90G',
+            sku: 'FG-90G',
+            series: 'G',
+            tierOrder: 7,
+            asic: 'SP5',
+            formFactor: 'Desktop',
+            ramGb: 8,
+            maxUsersByRam: 350, // 8GB RAM (200 SSL-VPN / 350 Dispositivos RAM)
+            threatProtectionMbps: 2200, // 2.2 Gbps
+            ngfwMbps: 2500,
+            ipsMbps: 4500,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x Portas (2x 10GE RJ45/SFP+ Shared WAN + 8x GE RJ45 Internas)',
+            maxSiteToSiteTunnels: 200,
+            ssdVariant: 'FG-91G (120GB SSD)',
+            wifiVariant: null,
+            poeVariant: null
+          },
+          {
+            id: 'fg-120g',
+            name: 'FortiGate 120G',
+            sku: 'FG-120G',
+            series: 'G',
+            tierOrder: 8,
+            asic: 'SP5',
+            formFactor: 'Rack 1RU (Dual PSU)',
+            ramGb: 8,
+            maxUsersByRam: 500, // 8GB RAM Rack
+            threatProtectionMbps: 2800, // 2.8 Gbps
+            ngfwMbps: 3100,
+            ipsMbps: 5300,
+            totalConfigurablePorts: 28,
+            portsDescription: '28x Portas Tráfego (16x GE RJ45 + 8x GE SFP + 4x 10GE SFP+ FortiLink) + 2x MGMT/HA',
+            maxSiteToSiteTunnels: 2000,
+            ssdVariant: 'FG-121G (480GB SSD)',
+            wifiVariant: null,
+            poeVariant: null
+          },
+          {
+            id: 'fg-200g',
+            name: 'FortiGate 200G',
+            sku: 'FG-200G',
+            series: 'G',
+            tierOrder: 9,
+            asic: 'NP7Lite + CP10',
+            formFactor: 'Rack 1RU (Dual PSU)',
+            ramGb: 16,
+            maxUsersByRam: 1000, // 16GB/24GB RAM High-End
+            threatProtectionMbps: 6000, // 6.0 Gbps
+            ngfwMbps: 7000,
+            ipsMbps: 9000,
+            totalConfigurablePorts: 28,
+            portsDescription: '28x Portas Tráfego (8x GE RJ45 + 8x 5GE RJ45 + 4x GE SFP + 8x 10GE SFP+) + 2x MGMT/HA',
+            maxSiteToSiteTunnels: 2000,
+            ssdVariant: 'FG-201G (480GB SSD)',
+            wifiVariant: null,
+            poeVariant: null
+          }
+        ]);
+
+        // Perfis Rápidos de Limite de Usuários por RAM
+        function applyRamProfile(profile) {
+          const limits = profile === 'ram_scaled'
+            ? { 'fg-30g': 50, 'fg-40f': 100, 'fg-60f': 150, 'fg-50g': 120, 'fg-80f': 200, 'fg-70g': 200, 'fg-90g': 350, 'fg-120g': 500, 'fg-200g': 1000 }
+            : { 'fg-30g': 50, 'fg-40f': 200, 'fg-60f': 200, 'fg-50g': 150, 'fg-80f': 200, 'fg-70g': 200, 'fg-90g': 200, 'fg-120g': 500, 'fg-200g': 500 };
+
+          firewallModels.forEach(box => {
+            if (limits[box.id]) box.maxUsersByRam = limits[box.id];
+          });
+          showToast('Régua de usuários por Memória RAM atualizada!');
+        }
+
+        // 1. Cálculo de Usuários Totais (Q3 + Q7 + Q8 + Q11) + Crescimento Q9 (%)
+        const baseUsers = computed(() => {
+          const q3 = Number(qpv.q3_mobileVpnUsers) || 0;
+          const q7 = Number(qpv.q7_lanDevices) || 0;
+          const q8 = Number(qpv.q8_wifiDevices) || 0;
+          const q11 = Number(qpv.q11_voipExtensions) || 0;
+          return q3 + q7 + q8 + q11;
+        });
+
+        const totalUsersWithGrowth = computed(() => {
+          const growth = Number(qpv.q9_growthPercent) || 0;
+          return Math.ceil(baseUsers.value * (1 + growth / 100));
+        });
+
+        // 2. Cálculo de Portas Totais Exigidas (Q4 LAN + Q5 WAN)
+        const totalRequiredPorts = computed(() => {
+          const lan = Number(qpv.q4_lanPorts) || 0;
+          const wan = Number(qpv.q5_wanPorts) || 0;
+          return lan + wan;
+        });
+
+        // 3. Cálculo da Banda em Mbps (Q6)
+        const requiredBandwidthMbps = computed(() => {
+          const val = Number(qpv.q6_bandwidthValue) || 0;
+          return qpv.q6_bandwidthUnit === 'Gbps' ? val * 1000 : val;
+        });
+
+        // 4. Quantidade de Caixas (Q10 - Alta Disponibilidade)
+        const recommendedQuantity = computed(() => {
+          return qpv.q10_haMode === 'Não' ? 1 : 2;
+        });
+
+        // 5. Avaliação de todas as caixas segundo os 4 critérios estritos (incluindo RAM/Usuários)
+        const evaluatedBoxes = computed(() => {
+          return firewallModels.map(box => {
+            const failReasons = [];
+
+            // Filtro opcional Série G
+            if (onlyGSeries.value && box.series !== 'G') {
+              failReasons.push('Série F desativada no filtro');
+            }
+
+            // Critério A: Banda (Threat Protection Throughput >= Q6)
+            if (box.threatProtectionMbps < requiredBandwidthMbps.value) {
+              failReasons.push(`Banda máx ${formatMbps(box.threatProtectionMbps)} < ${formatMbps(requiredBandwidthMbps.value)}`);
+            }
+
+            // Critério B: Portas Disponíveis Configuráveis (Total Portas >= Q4 + Q5)
+            if (box.totalConfigurablePorts < totalRequiredPorts.value) {
+              failReasons.push(`Portas (${box.totalConfigurablePorts}) < ${totalRequiredPorts.value} pedidas`);
+            }
+
+            // Critério C: Limite de Usuários baseado na Memória RAM da caixa (30G = 50 máx, etc.)
+            if (totalUsersWithGrowth.value > box.maxUsersByRam) {
+              failReasons.push(`Usuários (${totalUsersWithGrowth.value}) > máx RAM (${box.maxUsersByRam})`);
+            }
+
+            // Critério D: Túneis VPN Site-to-Site (Q2)
+            const requiredTunnels = Math.max(Number(qpv.q1_vpnSiteToSite) || 0, Number(qpv.q2_vpnTunnels) || 0);
+            if (requiredTunnels > box.maxSiteToSiteTunnels) {
+              failReasons.push(`Túneis VPN (${requiredTunnels}) > máx ${box.maxSiteToSiteTunnels}`);
+            }
+
+            return {
+              ...box,
+              failReasons,
+              passedAll: failReasons.length === 0
+            };
+          });
+        });
+
+        // 6. Seleção da Caixa Ideal (Menor porte/preço que atende simultaneamente aos 4 critérios)
+        const recommendedBox = computed(() => {
+          const validBoxes = evaluatedBoxes.value.filter(b => b.passedAll);
+          if (validBoxes.length === 0) return null;
+
+          return validBoxes.sort((a, b) => {
+            if (a.threatProtectionMbps !== b.threatProtectionMbps) {
+              return a.threatProtectionMbps - b.threatProtectionMbps;
+            }
+            return a.tierOrder - b.tierOrder;
+          })[0];
+        });
+
+        // Helpers de Formatação
+        function formatMbps(mbps) {
+          if (mbps >= 1000) {
+            return (mbps / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' Gbps';
+          }
+          return mbps + ' Mbps';
+        }
+
+        function formatDateBR(dateStr) {
+          if (!dateStr) return '';
+          const [y, m, d] = dateStr.split('-');
+          return `${d}/${m}/${y}`;
+        }
+
+        function setBandwidthMbps(mbps) {
+          qpv.q6_bandwidthUnit = 'Mbps';
+          qpv.q6_bandwidthValue = mbps;
+        }
+
+        function clearAdditionalServices() {
+          qpv.q13_additionalServices = [];
+        }
+
+        // Presets de teste rápido
+        function loadPreset(type) {
+          if (type === 'small') {
+            qpv.q1_vpnSiteToSite = 1;
+            qpv.q2_vpnTunnels = 1;
+            qpv.q3_mobileVpnUsers = 5;
+            qpv.q4_lanPorts = 2;
+            qpv.q5_wanPorts = 1;
+            qpv.q6_bandwidthValue = 400;
+            qpv.q6_bandwidthUnit = 'Mbps';
+            qpv.q7_lanDevices = 15;
+            qpv.q8_wifiDevices = 10;
+            qpv.q9_growthPercent = 15;
+            qpv.q10_haMode = 'Não';
+            qpv.q11_voipExtensions = 5;
+            qpv.q12_securityPlan = 'UTP (Unified Threat Protection)';
+            qpv.q13_additionalServices = [];
+          } else if (type === 'medium') {
+            qpv.q1_vpnSiteToSite = 3;
+            qpv.q2_vpnTunnels = 6;
+            qpv.q3_mobileVpnUsers = 15;
+            qpv.q4_lanPorts = 6;
+            qpv.q5_wanPorts = 2;
+            qpv.q6_bandwidthValue = 850;
+            qpv.q6_bandwidthUnit = 'Mbps';
+            qpv.q7_lanDevices = 60;
+            qpv.q8_wifiDevices = 40;
+            qpv.q9_growthPercent = 20;
+            qpv.q10_haMode = 'Não';
+            qpv.q11_voipExtensions = 30;
+            qpv.q12_securityPlan = 'UTP (Unified Threat Protection)';
+            qpv.q13_additionalServices = ['FortiSwitch'];
+          } else if (type === '1gbps') {
+            qpv.q1_vpnSiteToSite = 5;
+            qpv.q2_vpnTunnels = 10;
+            qpv.q3_mobileVpnUsers = 25;
+            qpv.q4_lanPorts = 6;
+            qpv.q5_wanPorts = 2;
+            qpv.q6_bandwidthValue = 1.2;
+            qpv.q6_bandwidthUnit = 'Gbps';
+            qpv.q7_lanDevices = 90;
+            qpv.q8_wifiDevices = 60;
+            qpv.q9_growthPercent = 20;
+            qpv.q10_haMode = 'Sim - Ativo/Passivo';
+            qpv.q11_voipExtensions = 45;
+            qpv.q12_securityPlan = 'UTP (Unified Threat Protection)';
+            qpv.q13_additionalServices = ['FortiAP', 'FortiAnalyzer'];
+          } else if (type === 'enterprise') {
+            qpv.q1_vpnSiteToSite = 15;
+            qpv.q2_vpnTunnels = 30;
+            qpv.q3_mobileVpnUsers = 50;
+            qpv.q4_lanPorts = 10;
+            qpv.q5_wanPorts = 3;
+            qpv.q6_bandwidthValue = 2.5;
+            qpv.q6_bandwidthUnit = 'Gbps';
+            qpv.q7_lanDevices = 120;
+            qpv.q8_wifiDevices = 80;
+            qpv.q9_growthPercent = 25;
+            qpv.q10_haMode = 'Sim - Ativo/Passivo';
+            qpv.q11_voipExtensions = 70;
+            qpv.q12_securityPlan = 'UTP (Unified Threat Protection)';
+            qpv.q13_additionalServices = ['FortiSwitch', 'FortiAnalyzer', 'FortiManager'];
+          }
+          showToast('Cenário carregado com sucesso!');
+        }
+
+        function resetForm() {
+          loadPreset('small');
+          clientInfo.name = '';
+          clientInfo.consultant = '';
+          showToast('Formulário reiniciado.');
+        }
+
+        function showToast(msg) {
+          toastMessage.value = msg;
+          setTimeout(() => {
+            toastMessage.value = '';
+          }, 3200);
+        }
+
+        function printReport() {
+          activeTab.value = 'report';
+          setTimeout(() => {
+            window.print();
+          }, 150);
+        }
+
+        function copySummaryToClipboard() {
+          const boxText = recommendedBox.value
+            ? `${recommendedQuantity.value}x ${recommendedBox.value.name} (${recommendedBox.value.sku}) - ${recommendedBox.value.ramGb}GB RAM | Threat Protection: ${formatMbps(recommendedBox.value.threatProtectionMbps)}`
+            : 'Acima da capacidade da linha 200G';
+
+          const text = [
+            `=== RESUMO DE DIMENSIONAMENTO QPV - MUNDIVOX ===`,
+            `Cliente: ${clientInfo.name || 'Não informado'}`,
+            `Data: ${formatDateBR(clientInfo.date)}`,
+            ``,
+            `>> CAIXA RECOMENDADA: ${boxText}`,
+            `>> MODO HA (Q10): ${qpv.q10_haMode} (${recommendedQuantity.value} unidade(s))`,
+            `>> PLANO DE SEGURANÇA (Q12): ${qpv.q12_securityPlan}`,
+            `>> ADICIONAIS (Q13): ${qpv.q13_additionalServices.length ? qpv.q13_additionalServices.join(', ') : 'Nenhum'}`,
+            ``,
+            `--- MEMÓRIA DE CÁLCULO ---`,
+            `• Banda Total (Q6): ${formatMbps(requiredBandwidthMbps.value)}`,
+            `• Portas Exigidas (Q4+Q5): ${totalRequiredPorts.value} portas (${qpv.q4_lanPorts} LAN + ${qpv.q5_wanPorts} WAN)`,
+            `• Usuários/Dispositivos Base (Q3+Q7+Q8+Q11): ${baseUsers.value} (${qpv.q3_mobileVpnUsers} Mobile VPN + ${qpv.q7_lanDevices} LAN + ${qpv.q8_wifiDevices} WiFi + ${qpv.q11_voipExtensions} VoIP)`,
+            `• Crescimento 12-36m (Q9): ${qpv.q9_growthPercent}% -> Total Projetado: ${totalUsersWithGrowth.value} usuários (Suportado por RAM: ${recommendedBox.value ? recommendedBox.value.maxUsersByRam : 'N/A'})`,
+            `• VPN Site-to-Site (Q1/Q2): ${qpv.q1_vpnSiteToSite} VPNs / ${qpv.q2_vpnTunnels} Túneis`
+          ].join('\n');
+
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+          showToast('Resumo técnico copiado para a área de transferência!');
+        }
+
+        return {
+          activeTab,
+          toastMessage,
+          onlyGSeries,
+          clientInfo,
+          qpv,
+          firewallModels,
+          applyRamProfile,
+          baseUsers,
+          totalUsersWithGrowth,
+          totalRequiredPorts,
+          requiredBandwidthMbps,
+          recommendedQuantity,
+          evaluatedBoxes,
+          recommendedBox,
+          formatMbps,
+          formatDateBR,
+          setBandwidthMbps,
+          clearAdditionalServices,
+          loadPreset,
+          resetForm,
+          printReport,
+          copySummaryToClipboard
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

@@ -1,0 +1,2333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MUNDIVOX | Sistema Corporativo de Dimensionamento QPV FortiGate</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue.js 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            btg: {
+              950: '#040D1A',
+              900: '#05132A',
+              850: '#09172E',
+              800: '#0F2140',
+              700: '#1B2E4B',
+              600: '#253D61',
+            },
+            mundi: {
+              blue: '#0047BB',
+              cyan: '#00A8E8',
+              accent: '#0070F3',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Reset Arquitetônico Estrito: Zero Cantos Arredondados em Toda a Aplicação */
+    *, *::before, *::after {
+      border-radius: 0px !important;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    }
+    .font-tabular {
+      font-variant-numeric: tabular-nums;
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      opacity: 1;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #05132A;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #253D61;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #0047BB;
+    }
+    @media print {
+      body, .dark-wrapper {
+        background-color: #FFFFFF !important;
+        color: #000000 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-break-avoid {
+        page-break-inside: avoid;
+      }
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-mundi-blue selection:text-white">
+  <div id="app" :class="darkMode ? 'dark' : ''">
+    <div class="dark-wrapper min-h-screen flex flex-col bg-[#F4F6F9] dark:bg-btg-950 text-slate-900 dark:text-slate-100 transition-colors duration-150">
+
+      <!-- ========================================================================= -->
+      <!-- CABEÇALHO INSTITUCIONAL FIXO (ARQUITETURA BTG PACTUAL / MUNDIVOX)         -->
+      <!-- ========================================================================= -->
+      <header class="sticky top-0 z-40 bg-btg-900 dark:bg-btg-950 text-white border-b border-slate-800 dark:border-btg-700 no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center gap-4">
+          
+          <!-- Identidade Institucional Mundivox -->
+          <div class="flex items-center space-x-4 cursor-pointer" @click="appMode = 'landing'">
+            <div class="w-9 h-9 bg-mundi-blue flex items-center justify-center font-mono font-bold text-sm tracking-tighter text-white border border-white/20">
+              MV
+            </div>
+            <div class="flex flex-col">
+              <div class="flex items-center gap-3">
+                <span class="font-bold text-sm tracking-[0.22em] text-white uppercase">MUNDIVOX</span>
+                <span class="h-3 w-[1px] bg-slate-600"></span>
+                <span class="text-[10px] font-mono uppercase tracking-[0.15em] text-slate-300">CORPORATE NETWORK & SECURITY</span>
+              </div>
+              <span class="text-[11px] text-slate-400 tracking-tight">Sistema de Pré-Venda (QPV) & Engenharia de Dimensionamento FortiGate</span>
+            </div>
+          </div>
+
+          <!-- Navegação de Ambientes + Alternador Claro/Escuro -->
+          <div class="flex items-center space-x-1">
+            <button 
+              @click="appMode = 'landing'"
+              :class="appMode === 'landing' ? 'bg-white text-btg-900 font-semibold' : 'bg-transparent text-slate-300 hover:bg-btg-800 hover:text-white border-slate-700'"
+              class="px-3.5 py-2 text-xs uppercase tracking-wider border border-transparent transition">
+              Início
+            </button>
+
+            <button 
+              @click="enterClientMode"
+              :class="appMode === 'client' ? 'bg-mundi-blue text-white border-mundi-cyan font-semibold' : 'bg-btg-850 text-slate-300 border-btg-700 hover:bg-btg-800 hover:text-white'"
+              class="px-4 py-2 text-xs uppercase tracking-wider border transition">
+              Portal do Cliente (QPV)
+            </button>
+
+            <button 
+              @click="openConsultantGate"
+              :class="appMode === 'consultant' ? 'bg-white text-btg-900 border-white font-semibold' : 'bg-btg-850 text-slate-300 border-btg-700 hover:bg-btg-800 hover:text-white'"
+              class="px-4 py-2 text-xs uppercase tracking-wider border flex items-center gap-2 transition">
+              <span>Engenharia / Consultor</span>
+              <span class="px-1.5 py-0.5 bg-btg-950 text-mundi-cyan font-mono text-[10px] font-bold border border-btg-700">
+                {{ submissions.length }}
+              </span>
+            </button>
+
+            <!-- Botão Tema Claro / Escuro -->
+            <button 
+              @click="toggleDarkMode"
+              :title="darkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'"
+              class="ml-2 px-3 py-2 bg-btg-850 hover:bg-btg-800 text-slate-300 border border-btg-700 transition flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider">
+              <i :class="darkMode ? 'ph ph-sun' : 'ph ph-moon'" class="text-sm"></i>
+              <span class="hidden md:inline">{{ darkMode ? 'LIGHT' : 'DARK' }}</span>
+            </button>
+          </div>
+
+        </div>
+      </header>
+
+      <!-- NOTIFICAÇÃO DE SISTEMA -->
+      <div v-if="toastMessage" class="fixed bottom-6 right-6 z-50 bg-btg-900 text-white px-5 py-3.5 shadow-2xl border-l-4 border-mundi-cyan border border-btg-700 flex items-center gap-3 no-print">
+        <span class="font-mono text-[10px] uppercase tracking-widest text-mundi-cyan">SISTEMA</span>
+        <span class="text-xs font-medium">{{ toastMessage }}</span>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- MODAL TÉCNICO DE INFORMAÇÃO "i" DOS SERVIÇOS ADICIONAIS                   -->
+      <!-- ========================================================================= -->
+      <div v-if="activeServiceInfoKey" class="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 no-print" @click.self="activeServiceInfoKey = null">
+        <div class="bg-white dark:bg-btg-850 border border-slate-300 dark:border-btg-700 max-w-lg w-full shadow-2xl">
+          <div class="bg-btg-900 px-6 py-4 text-white flex items-center justify-between border-b border-btg-700">
+            <div>
+              <span class="text-[10px] font-mono uppercase tracking-widest text-mundi-cyan block">ESPECIFICAÇÃO TÉCNICA • ECOSSISTEMA FORTINET</span>
+              <h4 class="font-bold text-sm text-white uppercase tracking-wide mt-0.5">{{ serviceCatalog[activeServiceInfoKey].title }}</h4>
+            </div>
+            <button @click="activeServiceInfoKey = null" class="text-slate-400 hover:text-white px-2 py-1 text-xs font-mono">
+              [FECHAR]
+            </button>
+          </div>
+          <div class="p-6 space-y-4 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+            <p class="font-semibold text-slate-900 dark:text-white border-l-2 border-mundi-blue pl-3">{{ serviceCatalog[activeServiceInfoKey].shortDesc }}</p>
+            <p>{{ serviceCatalog[activeServiceInfoKey].details }}</p>
+            <div class="p-4 bg-[#F4F6F9] dark:bg-btg-900 border border-slate-300 dark:border-btg-700 text-[11px]">
+              <strong class="text-slate-900 dark:text-white uppercase tracking-wider font-mono block mb-1">CRITÉRIO DE APLICABILIDADE:</strong>
+              {{ serviceCatalog[activeServiceInfoKey].whenToUse }}
+            </div>
+            <div class="pt-2 flex justify-end">
+              <button @click="activeServiceInfoKey = null" class="px-5 py-2 bg-btg-900 dark:bg-mundi-blue text-white font-semibold text-xs uppercase tracking-wider">
+                Fechar Nota Técnica
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- MODAL DE CREDENCIAL DO CONSULTOR MUNDIVOX                                 -->
+      <!-- ========================================================================= -->
+      <div v-if="showPinModal" class="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4 no-print" @click.self="showPinModal = false">
+        <div class="bg-white dark:bg-btg-850 border border-slate-300 dark:border-btg-700 max-w-md w-full shadow-2xl">
+          <div class="bg-btg-900 p-6 text-white flex items-center justify-between border-b border-btg-700">
+            <div>
+              <span class="text-[10px] font-mono uppercase tracking-widest text-mundi-cyan block">AUTENTICAÇÃO RESTRITA</span>
+              <h3 class="font-bold text-sm uppercase tracking-wider mt-0.5">Engenharia de Pré-Venda Mundivox</h3>
+            </div>
+            <button @click="showPinModal = false" class="text-slate-400 hover:text-white text-xs font-mono">
+              [X]
+            </button>
+          </div>
+
+          <form @submit.prevent="verifyConsultantPin" class="p-6 space-y-5">
+            <div>
+              <label class="block text-[11px] font-mono uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">CREDENCIAL DE ACESSO (PIN)</label>
+              <input 
+                v-model="pinInput" 
+                type="password" 
+                autofocus
+                placeholder="Informe o PIN (mundivox ou 1234)" 
+                class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-900 px-3.5 py-2.5 text-sm font-mono text-slate-900 dark:text-white focus:border-mundi-blue outline-none" />
+              <p v-if="pinError" class="text-xs text-red-600 dark:text-red-400 font-medium mt-2">
+                Credencial inválida. Utilize "mundivox" ou "1234".
+              </p>
+            </div>
+
+            <div class="p-3 bg-[#F4F6F9] dark:bg-btg-900 border border-slate-300 dark:border-btg-700 text-xs text-slate-600 dark:text-slate-400 flex items-center justify-between">
+              <span class="font-mono text-[11px]">CREDENCIAL PADRÃO:</span>
+              <button type="button" @click="pinInput = 'mundivox'; verifyConsultantPin()" class="text-mundi-blue dark:text-mundi-cyan font-mono font-semibold uppercase hover:underline text-[11px]">
+                [AUTENTICAR: MUNDIVOX]
+              </button>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-200 dark:border-btg-700">
+              <button type="button" @click="showPinModal = false" class="px-4 py-2 bg-slate-100 dark:bg-btg-900 text-slate-700 dark:text-slate-300 text-xs font-semibold uppercase tracking-wider border border-slate-300 dark:border-btg-700">
+                Cancelar
+              </button>
+              <button type="submit" class="px-5 py-2 bg-btg-900 dark:bg-mundi-blue hover:bg-btg-800 text-white text-xs font-semibold uppercase tracking-wider">
+                Acessar Engenharia
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- TELA 0: PORTAL INSTITUCIONAL DE ENTRADA (ARQUITETURA BTG / MUNDIVOX)      -->
+      <!-- ========================================================================= -->
+      <main v-if="appMode === 'landing'" class="flex-grow flex items-center justify-center p-4 sm:p-8 no-print">
+        <div class="max-w-6xl w-full space-y-8 py-6">
+          
+          <div class="border-l-4 border-mundi-blue pl-6 py-1 space-y-2">
+            <div class="text-[11px] font-mono font-semibold uppercase tracking-[0.2em] text-mundi-blue dark:text-mundi-cyan">
+              MUNDIVOX TELECOMUNICAÇÕES • ENGENHARIA DE SEGURANÇA CORPORATIVA
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight uppercase">
+              Sistema de Qualificação e Dimensionamento Técnico FortiGate (QPV)
+            </h1>
+            <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-400 max-w-4xl leading-relaxed">
+              Plataforma corporativa para coleta estruturada de requisitos de rede (Questionário de Pré-Venda) em topologias de unidade única ou múltiplas filiais, integrada ao motor determinístico de dimensionamento de appliances FortiGate baseado em <em>Threat Protection Throughput</em>, capacidade de memória RAM e densidade de interfaces físicas.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- MÓDULO 01: PORTAL DO CLIENTE -->
+            <div @click="enterClientMode" class="group bg-white dark:bg-btg-850 p-8 border border-slate-300 dark:border-btg-700 hover:border-mundi-blue dark:hover:border-mundi-cyan cursor-pointer transition flex flex-col justify-between">
+              <div class="space-y-5">
+                <div class="flex items-center justify-between border-b border-slate-200 dark:border-btg-700 pb-4">
+                  <span class="font-mono text-xs font-bold uppercase tracking-widest text-mundi-blue dark:text-mundi-cyan">
+                    MÓDULO 01 // FORMULÁRIO EXECUTIVO
+                  </span>
+                  <span class="font-mono text-[11px] text-slate-500 dark:text-slate-400 uppercase">
+                    ACESSO DO CLIENTE
+                  </span>
+                </div>
+                <h2 class="text-lg font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+                  Preenchimento do Questionário de Pré-Venda (QPV)
+                </h2>
+                <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                  Ambiente destinado ao cliente para especificação técnica da Matriz, Filiais Individuais ou Lotes de Filiais Padronizadas, definição de modalidade de licenciamento e revisão consolidada em tabela editável.
+                </p>
+
+                <div class="space-y-2 text-xs text-slate-700 dark:text-slate-300 pt-2 border-t border-slate-100 dark:border-btg-800">
+                  <div class="flex items-start gap-2.5">
+                    <span class="font-mono text-mundi-blue dark:text-mundi-cyan font-bold">01.</span>
+                    <span>Cadastro individual por localidade ou agrupamento por lotes de filiais padronizadas.</span>
+                  </div>
+                  <div class="flex items-start gap-2.5">
+                    <span class="font-mono text-mundi-blue dark:text-mundi-cyan font-bold">02.</span>
+                    <span>Seleção de licenciamento (<strong>UTP</strong> ou <strong>FortiCare</strong>) e especificações do ecossistema adicional (FortiAP, FortiSwitch, FortiAnalyzer e FortiManager).</span>
+                  </div>
+                  <div class="flex items-start gap-2.5">
+                    <span class="font-mono text-mundi-blue dark:text-mundi-cyan font-bold">03.</span>
+                    <span>Quadro de revisão final com edição rápida inline antes da homologação.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-8 pt-4 border-t border-slate-200 dark:border-btg-700 flex items-center justify-between">
+                <span class="text-xs font-mono font-bold uppercase tracking-wider text-mundi-blue dark:text-mundi-cyan group-hover:underline">
+                  INICIAR PREENCHIMENTO DO QPV &rarr;
+                </span>
+                <span class="text-[11px] font-mono text-slate-400">3 ETAPAS</span>
+              </div>
+            </div>
+
+            <!-- MÓDULO 02: PORTAL DO CONSULTOR -->
+            <div @click="openConsultantGate" class="group bg-btg-900 dark:bg-btg-900 text-white p-8 border border-btg-700 hover:border-mundi-cyan cursor-pointer transition flex flex-col justify-between">
+              <div class="space-y-5">
+                <div class="flex items-center justify-between border-b border-btg-700 pb-4">
+                  <span class="font-mono text-xs font-bold uppercase tracking-widest text-mundi-cyan">
+                    MÓDULO 02 // ENGENHARIA DE PRÉ-VENDA
+                  </span>
+                  <span class="px-2 py-0.5 bg-btg-800 border border-btg-600 text-mundi-cyan text-[11px] font-mono font-semibold">
+                    {{ submissions.length }} PROJETOS NA BASE
+                  </span>
+                </div>
+                <h2 class="text-lg font-bold text-white uppercase tracking-wide">
+                  Área Restrita do Consultor — Dimensionamento & Parecer
+                </h2>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                  Console técnico restrito à engenharia Mundivox para auditoria das respostas do QPV, dimensionamento automático do chassi FortiGate por unidade e emissão do parecer técnico justificativo.
+                </p>
+
+                <div class="space-y-2 text-xs text-slate-300 pt-2 border-t border-btg-800">
+                  <div class="flex items-start gap-2.5">
+                    <span class="font-mono text-mundi-cyan font-bold">01.</span>
+                    <span>Painel lateral fixo (<em>Sticky</em>) com cálculo em tempo real enquanto você audita ou edita o QPV.</span>
+                  </div>
+                  <div class="flex items-start gap-2.5">
+                    <span class="font-mono text-mundi-cyan font-bold">02.</span>
+                    <span>Memória de cálculo detalhada: Banda (Q6 vs Threat Protection), Usuários por Memória RAM (30G = 50 máx) e Interfaces Físicas (Q4 + Q5).</span>
+                  </div>
+                  <div class="flex items-start gap-2.5">
+                    <span class="font-mono text-mundi-cyan font-bold">03.</span>
+                    <span>Justificativa técnica do equipamento recomendado e motivo de descarte dos demais 8 modelos.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mt-8 pt-4 border-t border-btg-700 flex items-center justify-between">
+                <span class="text-xs font-mono font-bold uppercase tracking-wider text-mundi-cyan group-hover:underline">
+                  ACESSAR CONSOLE DE ENGENHARIA &rarr;
+                </span>
+                <span class="text-[11px] font-mono text-slate-400">PIN: mundivox</span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </main>
+
+      <!-- ========================================================================= -->
+      <!-- TELA 1: PORTAL DO CLIENTE — FORMULÁRIO EXECUTIVO EM 3 ETAPAS              -->
+      <!-- ========================================================================= -->
+      <main v-if="appMode === 'client'" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 no-print">
+        
+        <!-- CABEÇALHO DE PROGRESSO ARQUITETÔNICO -->
+        <div class="bg-white dark:bg-btg-850 border border-slate-300 dark:border-btg-700">
+          <div class="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-btg-700">
+            <div>
+              <span class="text-[10px] font-mono font-semibold uppercase tracking-[0.2em] text-mundi-blue dark:text-mundi-cyan block">
+                DOCUMENTO OFICIAL DE PRÉ-VENDA • MUNDIVOX
+              </span>
+              <h2 class="text-base font-bold text-slate-900 dark:text-white uppercase tracking-wide mt-0.5">
+                Especificação de Requisitos de Rede e Segurança (QPV)
+              </h2>
+            </div>
+
+            <div class="flex items-center gap-6 font-tabular">
+              <div class="text-right">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 block">UNIDADES REGISTRADAS</span>
+                <strong class="text-sm font-mono font-bold text-slate-900 dark:text-white">{{ totalMappedUnitsCount(clientDraft) }} LOCALIDADE(S)</strong>
+              </div>
+              <div class="h-7 w-[1px] bg-slate-300 dark:bg-btg-700"></div>
+              <div class="text-right">
+                <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500 dark:text-slate-400 block">STATUS DE PREENCHIMENTO</span>
+                <strong class="text-sm font-mono font-bold text-mundi-blue dark:text-mundi-cyan">{{ clientProgressPercent }}% CONCLUÍDO</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Barra de Etapas Tabular (3 Etapas) -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-200 dark:divide-btg-700 text-xs">
+            <button 
+              @click="clientStep = 1" 
+              :class="clientStep === 1 ? 'bg-btg-900 text-white font-semibold' : 'bg-white dark:bg-btg-850 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-btg-800'"
+              class="p-3.5 flex items-center justify-between text-left transition">
+              <div class="flex items-center gap-3">
+                <span class="font-mono text-xs font-bold" :class="clientStep === 1 ? 'text-mundi-cyan' : 'text-slate-400'">01</span>
+                <span class="uppercase tracking-wider text-[11px]">Identificação Corporativa</span>
+              </div>
+              <span v-if="clientStep > 1" class="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">[OK]</span>
+            </button>
+
+            <button 
+              @click="clientStep = 2" 
+              :class="clientStep === 2 ? 'bg-btg-900 text-white font-semibold' : 'bg-white dark:bg-btg-850 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-btg-800'"
+              class="p-3.5 flex items-center justify-between text-left transition">
+              <div class="flex items-center gap-3">
+                <span class="font-mono text-xs font-bold" :class="clientStep === 2 ? 'text-mundi-cyan' : 'text-slate-400'">02</span>
+                <span class="uppercase tracking-wider text-[11px]">Especificação de Matriz & Filiais ({{ clientDraft.sites.length }})</span>
+              </div>
+              <span v-if="clientStep > 2" class="font-mono text-[10px] text-emerald-600 dark:text-emerald-400">[OK]</span>
+            </button>
+
+            <button 
+              @click="clientStep = 3" 
+              :class="clientStep >= 3 ? 'bg-btg-900 text-white font-semibold' : 'bg-white dark:bg-btg-850 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-btg-800'"
+              class="p-3.5 flex items-center justify-between text-left transition">
+              <div class="flex items-center gap-3">
+                <span class="font-mono text-xs font-bold" :class="clientStep >= 3 ? 'text-mundi-cyan' : 'text-slate-400'">03</span>
+                <span class="uppercase tracking-wider text-[11px]">Resumo Consolidado & Revisão Inline</span>
+              </div>
+              <span class="font-mono text-[10px] opacity-75">[REVISAR]</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- PASSO 01 DO CLIENTE: IDENTIFICAÇÃO CORPORATIVA            -->
+        <!-- ========================================================= -->
+        <div v-if="clientStep === 1" class="bg-white dark:bg-btg-850 border border-slate-300 dark:border-btg-700 p-6 sm:p-8 space-y-6">
+          <div class="border-b border-slate-200 dark:border-btg-700 pb-4">
+            <span class="text-[10px] font-mono font-semibold uppercase tracking-widest text-mundi-blue dark:text-mundi-cyan">SEÇÃO 01 // DADOS DO PROJETO</span>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white uppercase tracking-wide mt-0.5">Declaração e Identificação do Cliente</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Pelo presente instrumento, o CLIENTE declara expressamente que as informações abaixo apresentadas são verdadeiras e está ciente de que a solução será dimensionada por estas respostas fornecidas.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">RAZÃO SOCIAL / NOME DA EMPRESA *</label>
+              <input v-model="clientDraft.companyName" type="text" placeholder="Ex: Companhia Brasileira de Logística S.A." class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-900 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-mundi-blue outline-none" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">RESPONSÁVEL TÉCNICO / CARGO *</label>
+              <input v-model="clientDraft.contactName" type="text" placeholder="Ex: Henrique Vasconcelos — Gerente de TI" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-900 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-mundi-blue outline-none" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">E-MAIL CORPORATIVO / TELEFONE</label>
+              <input v-model="clientDraft.contactEmail" type="text" placeholder="Ex: ti@empresa.com.br | (11) 3000-0000" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-900 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-mundi-blue outline-none" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">PRAZO DE VIGÊNCIA CONTRATUAL / OBSERVAÇÕES</label>
+              <input v-model="clientDraft.notes" type="text" placeholder="Ex: Contrato de 36 meses — Substituição de appliances legados" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-900 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-mundi-blue outline-none" />
+            </div>
+          </div>
+
+          <div class="flex justify-end pt-4 border-t border-slate-200 dark:border-btg-700">
+            <button @click="clientStep = 2" class="px-6 py-3 bg-btg-900 dark:bg-mundi-blue hover:bg-btg-800 text-white font-mono font-semibold text-xs uppercase tracking-wider transition">
+              AVANÇAR PARA ESPECIFICAÇÃO DE UNIDADES &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- PASSO 02 DO CLIENTE: CONFIGURAÇÃO TÉCNICA POR UNIDADE     -->
+        <!-- ========================================================= -->
+        <div v-if="clientStep === 2" class="space-y-6">
+          
+          <!-- Barra de Controle de Localidades -->
+          <div class="bg-white dark:bg-btg-850 p-5 border border-slate-300 dark:border-btg-700 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <span class="text-[10px] font-mono font-semibold uppercase tracking-widest text-mundi-blue dark:text-mundi-cyan">SEÇÃO 02 // TOPOLOGIA MULTI-SITE</span>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white uppercase tracking-wide mt-0.5">Cadastro de Matriz, Filiais Individuais ou Lotes Padronizados</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">
+                Cadastre cada unidade separadamente ou utilize <strong>"+ Lote de Filiais Padronizadas"</strong> para filiais de mesmo porte.
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button @click="addClientSite('single')" class="px-4 py-2.5 bg-btg-900 dark:bg-mundi-blue hover:bg-btg-800 text-white text-xs font-mono font-semibold uppercase tracking-wider transition">
+                + Nova Filial Individual
+              </button>
+              <button @click="addClientSite('batch')" class="px-4 py-2.5 bg-[#F4F6F9] dark:bg-btg-900 hover:bg-slate-200 dark:hover:bg-btg-800 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-btg-700 text-xs font-mono font-semibold uppercase tracking-wider transition">
+                + Lote de Filiais Padronizadas
+              </button>
+            </div>
+          </div>
+
+          <!-- Seletor Tabular de Unidades -->
+          <div class="flex flex-wrap items-center border-b border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850">
+            <button v-for="(site, idx) in clientDraft.sites" :key="site.id"
+              @click="activeClientSiteIndex = idx"
+              :class="activeClientSiteIndex === idx ? 'bg-btg-900 dark:bg-mundi-blue text-white font-semibold border-b-2 border-mundi-cyan' : 'bg-white dark:bg-btg-850 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-btg-800'"
+              class="px-5 py-3 text-xs font-mono uppercase tracking-wider border-r border-slate-200 dark:border-btg-700 flex items-center gap-2 transition">
+              <span>[{{ String(idx + 1).padStart(2, '0') }}]</span>
+              <span>{{ site.name || ('UNIDADE ' + (idx + 1)) }}</span>
+              <span v-if="site.quantity > 1" class="px-1.5 py-0.5 bg-black/30 text-[10px] font-bold">
+                {{ site.quantity }}x
+              </span>
+            </button>
+          </div>
+
+          <!-- FORMULÁRIO TÉCNICO DA UNIDADE SELECIONADA -->
+          <div v-if="currentClientSite" class="bg-white dark:bg-btg-850 p-6 sm:p-8 border border-slate-300 dark:border-btg-700 space-y-8">
+            
+            <!-- Identificação da Localidade e Quantidade do Lote -->
+            <div class="flex flex-wrap items-end justify-between gap-4 pb-6 border-b border-slate-200 dark:border-btg-700">
+              <div class="flex-grow grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <div class="sm:col-span-2">
+                  <label class="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">IDENTIFICAÇÃO DA UNIDADE OU LOTE DE FILIAIS</label>
+                  <input v-model="currentClientSite.name" type="text" placeholder="Ex: Matriz São Paulo ou Lote Filiais Regionais" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-900 px-3.5 py-2 text-sm font-semibold text-slate-900 dark:text-white focus:border-mundi-blue outline-none" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400 mb-1.5">QUANTIDADE DE UNIDADES IDÊNTICAS</label>
+                  <div class="flex items-center">
+                    <input v-model.number="currentClientSite.quantity" type="number" min="1" max="500" class="w-full border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 px-3.5 py-2 text-sm font-mono font-bold text-slate-900 dark:text-white focus:border-mundi-blue outline-none" />
+                    <span class="px-3 py-2 bg-slate-100 dark:bg-btg-800 border border-l-0 border-slate-300 dark:border-btg-700 text-xs font-mono text-slate-500">UNID.</span>
+                  </div>
+                </div>
+              </div>
+
+              <button v-if="clientDraft.sites.length > 1" @click="removeClientSite(activeClientSiteIndex)" class="px-3.5 py-2 bg-white dark:bg-btg-900 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 text-xs font-mono uppercase tracking-wider border border-red-300 dark:border-red-900/60">
+                REMOVER UNIDADE
+              </button>
+            </div>
+
+            <!-- BLOCO 2.1: CONECTIVIDADE, INTERFACES FÍSICAS E VPN (Q1, Q2, Q4, Q5, Q6) -->
+            <div class="space-y-4">
+              <div class="border-l-2 border-mundi-blue pl-3">
+                <span class="text-[10px] font-mono uppercase tracking-widest text-mundi-blue dark:text-mundi-cyan block">PARÂMETROS DE REDE FÍSICA & WAN</span>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Conectividade, Interfaces LAN/WAN e Túneis VPN (Questões 1, 2, 4, 5 e 6)</h4>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 p-5 bg-[#F4F6F9] dark:bg-btg-900 border border-slate-300 dark:border-btg-700">
+                <!-- Q5 -->
+                <div>
+                  <label class="block text-[11px] font-mono font-bold uppercase text-slate-800 dark:text-slate-200 mb-1">05. INTERFACES WAN</label>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Portas p/ links Internet/MPLS</p>
+                  <input v-model.number="currentClientSite.q5_wanPorts" type="number" min="1" max="28" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-mundi-blue" />
+                </div>
+
+                <!-- Q6 -->
+                <div class="sm:col-span-2">
+                  <label class="block text-[11px] font-mono font-bold uppercase text-slate-800 dark:text-slate-200 mb-1">06. SOMATÓRIA DE BANDA DOS LINKS</label>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Soma total dos links de Internet + MPLS/L2L</p>
+                  <div class="flex">
+                    <input v-model.number="currentClientSite.q6_bandwidthValue" type="number" min="1" step="any" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-mundi-blue" />
+                    <select v-model="currentClientSite.q6_bandwidthUnit" class="border border-l-0 border-slate-300 dark:border-btg-700 bg-slate-100 dark:bg-btg-800 px-3 py-2 text-xs font-mono font-bold text-slate-800 dark:text-slate-200 outline-none">
+                      <option value="Mbps">Mbps</option>
+                      <option value="Gbps">Gbps</option>
+                    </select>
+                  </div>
+                </div>
+
+                <!-- Q4 -->
+                <div>
+                  <label class="block text-[11px] font-mono font-bold uppercase text-slate-800 dark:text-slate-200 mb-1">04. INTERFACES LAN</label>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Portas internas necessárias</p>
+                  <input v-model.number="currentClientSite.q4_lanPorts" type="number" min="1" max="28" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-mundi-blue" />
+                </div>
+
+                <!-- Q1 & Q2 -->
+                <div>
+                  <label class="block text-[11px] font-mono font-bold uppercase text-slate-800 dark:text-slate-200 mb-1">01 & 02. VPN SITE-TO-SITE</label>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-2">Qtd. VPNs / Qtd. Túneis</p>
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <input v-model.number="currentClientSite.q1_vpnSiteToSite" type="number" min="0" title="Questão 1: Quantas VPN Site-to-Site" placeholder="VPNs" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2 py-2 text-xs font-mono font-bold text-center text-slate-900 dark:text-white" />
+                    <input v-model.number="currentClientSite.q2_vpnTunnels" type="number" min="0" title="Questão 2: Quantos túneis" placeholder="Túneis" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2 py-2 text-xs font-mono font-bold text-center text-slate-900 dark:text-white" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- BLOCO 2.2: VOLUMETRIA DE USUÁRIOS E DISPOSITIVOS + DISCLAIMER -->
+            <div class="space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="border-l-2 border-mundi-blue pl-3">
+                  <span class="text-[10px] font-mono uppercase tracking-widest text-mundi-blue dark:text-mundi-cyan block">DEMANDA DE SESSÕES E MEMÓRIA RAM</span>
+                  <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Volumetria de Usuários, Dispositivos e Ramais (Questões 3, 7, 8 e 11)</h4>
+                </div>
+                <div class="px-3 py-1.5 bg-[#F4F6F9] dark:bg-btg-900 border border-slate-300 dark:border-btg-700 text-xs font-mono">
+                  TOTAL COMPUTADO NA UNIDADE: <strong class="text-mundi-blue dark:text-mundi-cyan">{{ siteTotalUsers(currentClientSite) }} USUÁRIOS/DISP.</strong>
+                </div>
+              </div>
+
+              <!-- DISCLAIMER FORMAL NA ÁREA DE QUANTIDADE DE USUÁRIOS -->
+              <div class="p-4 bg-[#F4F6F9] dark:bg-btg-900 border-l-4 border-btg-900 dark:border-mundi-cyan border border-slate-300 dark:border-btg-700">
+                <p class="text-xs text-slate-800 dark:text-slate-200 leading-relaxed">
+                  <strong class="font-mono uppercase tracking-wider">AVISO DE DIMENSIONAMENTO:</strong> Informe os quantitativos de usuários e dispositivos abaixo <strong>considerando a projeção de crescimento da sua empresa durante todo o período de vigência contratual da licença</strong> (12, 24 ou 36 meses), garantindo capacidade de memória RAM e processamento sem necessidade de substituição prematura do hardware.
+                </p>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="p-4 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900">
+                  <label class="block text-[11px] font-mono font-bold uppercase text-slate-800 dark:text-slate-200 mb-1">07. DISPOSITIVOS REDE LAN</label>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3">Estações, servidores e ativos cabeados</p>
+                  <input v-model.number="currentClientSite.q7_lanDevices" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-mundi-blue" />
+                </div>
+
+                <div class="p-4 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900">
+                  <label class="block text-[11px] font-mono font-bold uppercase text-slate-800 dark:text-slate-200 mb-1">08. DISPOSITIVOS VIA WI-FI</label>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3">Conectados passando pelo Firewall</p>
+                  <input v-model.number="currentClientSite.q8_wifiDevices" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-mundi-blue" />
+                </div>
+
+                <div class="p-4 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900">
+                  <label class="block text-[11px] font-mono font-bold uppercase text-slate-800 dark:text-slate-200 mb-1">03. USUÁRIOS MOBILE VPN</label>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3">Conexões remotas simultâneas</p>
+                  <input v-model.number="currentClientSite.q3_mobileVpnUsers" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-mundi-blue" />
+                </div>
+
+                <div class="p-4 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900">
+                  <label class="block text-[11px] font-mono font-bold uppercase text-slate-800 dark:text-slate-200 mb-1">11. TELEFONIA VOIP (RAMAIS)</label>
+                  <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3">Quantidade de ramais IP ativos</p>
+                  <input v-model.number="currentClientSite.q11_voipExtensions" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-mundi-blue" />
+                </div>
+              </div>
+            </div>
+
+            <!-- BLOCO 2.3: PLANO DE SEGURANÇA POR UNIDADE (Q12) & ALTA DISPONIBILIDADE (Q10) + DISCLAIMER -->
+            <div class="space-y-4">
+              <div class="border-l-2 border-mundi-blue pl-3">
+                <span class="text-[10px] font-mono uppercase tracking-widest text-mundi-blue dark:text-mundi-cyan block">SUBSCRIÇÃO FORTIGUARD & REDUNDÂNCIA</span>
+                <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Plano de Segurança (Questão 12) & Alta Disponibilidade (Questão 10)</h4>
+              </div>
+
+              <!-- DISCLAIMER FORMAL NA ESCOLHA DE LICENÇA -->
+              <div class="p-4 bg-[#F4F6F9] dark:bg-btg-900 border-l-4 border-mundi-blue border border-slate-300 dark:border-btg-700">
+                <p class="text-xs text-slate-800 dark:text-slate-200 leading-relaxed">
+                  <strong class="font-mono uppercase tracking-wider">NOTA TÉCNICA DE LICENCIAMENTO:</strong> Selecione a modalidade de segurança (<strong>UTP</strong> ou <strong>FortiCare</strong>) aplicável a esta localidade considerando as políticas de conformidade, inspeção de tráfego e o crescimento da operação ao longo da vigência da licença.
+                </p>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <!-- Opção 1: UTP -->
+                <div 
+                  @click="currentClientSite.q12_securityPlan = 'UTP (Unified Threat Protection)'"
+                  :class="currentClientSite.q12_securityPlan === 'UTP (Unified Threat Protection)' ? 'border-2 border-mundi-blue dark:border-mundi-cyan bg-white dark:bg-btg-900' : 'border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900/50 opacity-80 hover:opacity-100'"
+                  class="p-5 cursor-pointer transition space-y-2">
+                  <div class="flex items-center justify-between border-b border-slate-200 dark:border-btg-700 pb-2">
+                    <span class="font-mono font-bold text-xs uppercase text-slate-900 dark:text-white">
+                      [X] LICENÇA UTP (COMPLETA)
+                    </span>
+                    <span class="text-[10px] font-mono font-bold px-2 py-0.5 bg-mundi-blue text-white uppercase">NGFW COMPLETO</span>
+                  </div>
+                  <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed pt-1">
+                    Contempla FortiCare + <strong>Filtro Web/URL, Controle de Aplicações, Prevenção de Intrusão (IPS), Antivírus, Inspeção SSL e Sandboxing</strong>.
+                  </p>
+                </div>
+
+                <!-- Opção 2: FortiCare -->
+                <div 
+                  @click="currentClientSite.q12_securityPlan = 'FortiCare'"
+                  :class="currentClientSite.q12_securityPlan === 'FortiCare' ? 'border-2 border-mundi-blue dark:border-mundi-cyan bg-white dark:bg-btg-900' : 'border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900/50 opacity-80 hover:opacity-100'"
+                  class="p-5 cursor-pointer transition space-y-2">
+                  <div class="flex items-center justify-between border-b border-slate-200 dark:border-btg-700 pb-2">
+                    <span class="font-mono font-bold text-xs uppercase text-slate-900 dark:text-white">
+                      [ ] LICENÇA FORTICARE (BASE)
+                    </span>
+                    <span class="text-[10px] font-mono font-semibold px-2 py-0.5 bg-slate-200 dark:bg-btg-700 text-slate-800 dark:text-slate-200 uppercase">BÁSICO</span>
+                  </div>
+                  <p class="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed pt-1">
+                    Contempla suporte de hardware/firmware, <strong>SD-WAN, Gerenciamento de Banda e VPN IPsec</strong> (sem inspeção de ameaças UTP).
+                  </p>
+                </div>
+
+                <!-- Questão 10: Alta Disponibilidade (HA) -->
+                <div class="p-5 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 flex flex-col justify-between">
+                  <div>
+                    <label class="block text-[11px] font-mono font-bold uppercase text-slate-900 dark:text-white mb-1">
+                      10. ALTA DISPONIBILIDADE DE HARDWARE
+                    </label>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-3">
+                      Necessidade de redundância física (Cluster HA com 2 appliances)?
+                    </p>
+                  </div>
+                  <select v-model="currentClientSite.q10_haMode" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2.5 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none">
+                    <option value="Não">NÃO — HARDWARE ÚNICO (1x CAIXA)</option>
+                    <option value="Sim - Ativo/Passivo">SIM — CLUSTER ATIVO/PASSIVO (2x CAIXAS)</option>
+                    <option value="Sim - Ativo/Ativo">SIM — CLUSTER ATIVO/ATIVO (2x CAIXAS)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- BLOCO 2.4: SERVIÇOS ADICIONAIS (QUESTÃO 13) COM BOTÃO TÉCNICO "i" -->
+            <div class="space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="border-l-2 border-mundi-blue pl-3">
+                  <span class="text-[10px] font-mono uppercase tracking-widest text-mundi-blue dark:text-mundi-cyan block">MÓDULOS COMPLEMENTARES</span>
+                  <h4 class="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">13. Serviços e Equipamentos Adicionais na Localidade</h4>
+                </div>
+                <span class="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                  Clique em <strong class="px-1.5 py-0.5 border border-slate-400 text-[10px]">i</strong> para consultar o descritivo técnico de cada solução
+                </span>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <!-- 1. FortiAP -->
+                <div class="p-5 border transition" :class="currentClientSite.addons.fortiAP.enabled ? 'border-mundi-blue dark:border-mundi-cyan bg-white dark:bg-btg-900' : 'border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900/40'">
+                  <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" v-model="currentClientSite.addons.fortiAP.enabled" class="w-4 h-4 accent-mundi-blue" />
+                      <span class="font-mono font-bold text-xs uppercase text-slate-900 dark:text-white">FORTIAP (ACCESS POINTS WI-FI CORPORATIVO)</span>
+                    </label>
+                    <button type="button" @click="activeServiceInfoKey = 'fortiAP'" title="Nota Técnica FortiAP" class="w-6 h-6 bg-white dark:bg-btg-800 hover:bg-mundi-blue hover:text-white text-slate-700 dark:text-mundi-cyan text-xs font-mono font-bold flex items-center justify-center border border-slate-300 dark:border-btg-600 transition">
+                      i
+                    </button>
+                  </div>
+
+                  <!-- Sub-opções FortiAP -->
+                  <div v-if="currentClientSite.addons.fortiAP.enabled" class="mt-4 pt-4 border-t border-slate-200 dark:border-btg-700 space-y-3">
+                    <label class="flex items-center gap-2.5 p-3 bg-[#F4F6F9] dark:bg-btg-850 border border-slate-300 dark:border-btg-700 cursor-pointer">
+                      <input type="checkbox" v-model="currentClientSite.addons.fortiAP.needConsultant" class="w-4 h-4 accent-mundi-blue" />
+                      <span class="text-[11px] font-mono font-semibold text-slate-900 dark:text-slate-200 uppercase">
+                        NÃO SEI SE EU QUERO / NÃO SEI ESPECIFICAR — PRECISO DE UM CONSULTOR
+                      </span>
+                    </label>
+
+                    <div v-if="!currentClientSite.addons.fortiAP.needConsultant" class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-[10px] font-mono uppercase text-slate-600 dark:text-slate-400 mb-1">QUANTIDADE DE APS</label>
+                        <input v-model.number="currentClientSite.addons.fortiAP.qty" type="number" min="1" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-1.5 text-xs font-mono font-bold" />
+                      </div>
+                      <div>
+                        <label class="block text-[10px] font-mono uppercase text-slate-600 dark:text-slate-400 mb-1">MODELO PREFERENCIAL</label>
+                        <input v-model="currentClientSite.addons.fortiAP.model" type="text" placeholder="Ex: FAP-231G / FAP-431G" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-1.5 text-xs font-mono" />
+                      </div>
+                    </div>
+
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
+                      * NOTA: Caso tenha selecionado FortiAP, favor enviar planta baixa do local de instalação para estudo de cobertura de sinal.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- 2. FortiSwitch -->
+                <div class="p-5 border transition" :class="currentClientSite.addons.fortiSwitch.enabled ? 'border-mundi-blue dark:border-mundi-cyan bg-white dark:bg-btg-900' : 'border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900/40'">
+                  <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" v-model="currentClientSite.addons.fortiSwitch.enabled" class="w-4 h-4 accent-mundi-blue" />
+                      <span class="font-mono font-bold text-xs uppercase text-slate-900 dark:text-white">FORTISWITCH (SWITCHES GERENCIADOS FORTILINK)</span>
+                    </label>
+                    <button type="button" @click="activeServiceInfoKey = 'fortiSwitch'" title="Nota Técnica FortiSwitch" class="w-6 h-6 bg-white dark:bg-btg-800 hover:bg-mundi-blue hover:text-white text-slate-700 dark:text-mundi-cyan text-xs font-mono font-bold flex items-center justify-center border border-slate-300 dark:border-btg-600 transition">
+                      i
+                    </button>
+                  </div>
+
+                  <!-- Sub-opções FortiSwitch -->
+                  <div v-if="currentClientSite.addons.fortiSwitch.enabled" class="mt-4 pt-4 border-t border-slate-200 dark:border-btg-700 space-y-3">
+                    <label class="flex items-center gap-2.5 p-3 bg-[#F4F6F9] dark:bg-btg-850 border border-slate-300 dark:border-btg-700 cursor-pointer">
+                      <input type="checkbox" v-model="currentClientSite.addons.fortiSwitch.needConsultant" class="w-4 h-4 accent-mundi-blue" />
+                      <span class="text-[11px] font-mono font-semibold text-slate-900 dark:text-slate-200 uppercase">
+                        NÃO SEI SE EU QUERO / NÃO SEI ESPECIFICAR — PRECISO DE UM CONSULTOR
+                      </span>
+                    </label>
+
+                    <div v-if="!currentClientSite.addons.fortiSwitch.needConsultant" class="grid grid-cols-2 gap-3">
+                      <div>
+                        <label class="block text-[10px] font-mono uppercase text-slate-600 dark:text-slate-400 mb-1">QUANTIDADE DE SWITCHES</label>
+                        <input v-model.number="currentClientSite.addons.fortiSwitch.qty" type="number" min="1" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-1.5 text-xs font-mono font-bold" />
+                      </div>
+                      <div>
+                        <label class="block text-[10px] font-mono uppercase text-slate-600 dark:text-slate-400 mb-1">MODELO / DENSIDADE (24P/48P POE)</label>
+                        <input v-model="currentClientSite.addons.fortiSwitch.model" type="text" placeholder="Ex: FS-124F-FPOE (24p PoE)" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-1.5 text-xs font-mono" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3. FortiAnalyzer -->
+                <div class="p-5 border transition" :class="currentClientSite.addons.fortiAnalyzer.enabled ? 'border-mundi-blue dark:border-mundi-cyan bg-white dark:bg-btg-900' : 'border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900/40'">
+                  <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" v-model="currentClientSite.addons.fortiAnalyzer.enabled" class="w-4 h-4 accent-mundi-blue" />
+                      <span class="font-mono font-bold text-xs uppercase text-slate-900 dark:text-white">FORTIANALYZER (RETENÇÃO DE LOGS & AUDITORIA)</span>
+                    </label>
+                    <button type="button" @click="activeServiceInfoKey = 'fortiAnalyzer'" title="Nota Técnica FortiAnalyzer" class="w-6 h-6 bg-white dark:bg-btg-800 hover:bg-mundi-blue hover:text-white text-slate-700 dark:text-mundi-cyan text-xs font-mono font-bold flex items-center justify-center border border-slate-300 dark:border-btg-600 transition">
+                      i
+                    </button>
+                  </div>
+
+                  <!-- Sub-opções FortiAnalyzer (Volumetria) -->
+                  <div v-if="currentClientSite.addons.fortiAnalyzer.enabled" class="mt-4 pt-4 border-t border-slate-200 dark:border-btg-700 space-y-2.5">
+                    <div>
+                      <label class="block text-[10px] font-mono uppercase text-slate-700 dark:text-slate-300 mb-1">
+                        VOLUMETRIA ESTIMADA DE LOGS (GB/DIA E PERÍODO DE RETENÇÃO) *
+                      </label>
+                      <input v-model="currentClientSite.addons.fortiAnalyzer.volumetry" type="text" placeholder="Ex: 10 GB/dia com retenção de 365 dias (LGPD)" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-xs font-mono text-slate-900 dark:text-white" />
+                    </div>
+                    <label class="flex items-center gap-2 cursor-pointer text-[11px] font-mono text-mundi-blue dark:text-mundi-cyan font-semibold">
+                      <input type="checkbox" @change="e => { if(e.target.checked) currentClientSite.addons.fortiAnalyzer.volumetry = 'SOLICITADO APOIO DE CONSULTOR PARA CÁLCULO DE VOLUMETRIA'; }" class="accent-mundi-blue" />
+                      <span>NÃO SEI A VOLUMETRIA — DIMENSIONAR COM CONSULTOR MUNDIVOX</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- 4. FortiManager -->
+                <div class="p-5 border transition" :class="currentClientSite.addons.fortiManager.enabled ? 'border-mundi-blue dark:border-mundi-cyan bg-white dark:bg-btg-900' : 'border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900/40'">
+                  <div class="flex items-center justify-between">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" v-model="currentClientSite.addons.fortiManager.enabled" class="w-4 h-4 accent-mundi-blue" />
+                      <span class="font-mono font-bold text-xs uppercase text-slate-900 dark:text-white">FORTIMANAGER (GERÊNCIA CENTRALIZADA NOC)</span>
+                    </label>
+                    <button type="button" @click="activeServiceInfoKey = 'fortiManager'" title="Nota Técnica FortiManager" class="w-6 h-6 bg-white dark:bg-btg-800 hover:bg-mundi-blue hover:text-white text-slate-700 dark:text-mundi-cyan text-xs font-mono font-bold flex items-center justify-center border border-slate-300 dark:border-btg-600 transition">
+                      i
+                    </button>
+                  </div>
+
+                  <!-- Sub-opções FortiManager (Volumetria) -->
+                  <div v-if="currentClientSite.addons.fortiManager.enabled" class="mt-4 pt-4 border-t border-slate-200 dark:border-btg-700 space-y-2.5">
+                    <div>
+                      <label class="block text-[10px] font-mono uppercase text-slate-700 dark:text-slate-300 mb-1">
+                        VOLUMETRIA DE GERÊNCIA (Nº DE EQUIPAMENTOS / ADOMS) *
+                      </label>
+                      <input v-model="currentClientSite.addons.fortiManager.volumetry" type="text" placeholder="Ex: Gerência centralizada de 15 Firewalls + 30 Switches" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-xs font-mono text-slate-900 dark:text-white" />
+                    </div>
+                    <label class="flex items-center gap-2 cursor-pointer text-[11px] font-mono text-mundi-blue dark:text-mundi-cyan font-semibold">
+                      <input type="checkbox" @change="e => { if(e.target.checked) currentClientSite.addons.fortiManager.volumetry = 'SOLICITADO APOIO DE CONSULTOR PARA DIMENSIONAR VOLUMETRIA'; }" class="accent-mundi-blue" />
+                      <span>NÃO SEI A VOLUMETRIA — DIMENSIONAR COM CONSULTOR MUNDIVOX</span>
+                    </label>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+          <div class="flex justify-between pt-2">
+            <button @click="clientStep = 1" class="px-5 py-3 bg-white dark:bg-btg-850 border border-slate-300 dark:border-btg-700 text-slate-700 dark:text-slate-300 font-mono font-semibold text-xs uppercase tracking-wider">
+              &larr; VOLTAR PARA IDENTIFICAÇÃO
+            </button>
+            <button @click="clientStep = 3" class="px-6 py-3 bg-btg-900 dark:bg-mundi-blue hover:bg-btg-800 text-white font-mono font-semibold text-xs uppercase tracking-wider transition">
+              REVISAR QUADRO RESUMO DAS FILIAIS &rarr;
+            </button>
+          </div>
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- PASSO 03 DO CLIENTE: RESUMO CONSOLIDADO & EDIÇÃO INLINE   -->
+        <!-- ========================================================= -->
+        <div v-if="clientStep === 3" class="space-y-6">
+          
+          <div class="bg-white dark:bg-btg-850 p-6 sm:p-8 border border-slate-300 dark:border-btg-700 space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-btg-700 pb-5">
+              <div>
+                <span class="text-[10px] font-mono font-semibold uppercase tracking-widest text-mundi-blue dark:text-mundi-cyan">
+                  SEÇÃO 03 // CONFERÊNCIA E EDIÇÃO RÁPIDA PRÉ-ENVIO
+                </span>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white uppercase tracking-wide mt-0.5">
+                  Quadro Consolidado de Unidades Mapeadas
+                </h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Verifique os dados informados para cada filial. <strong>Todos os campos abaixo são editáveis diretamente na tabela</strong> para correções imediatas antes da homologação.
+                </p>
+              </div>
+              <button @click="addClientSite('single'); clientStep = 2" class="px-4 py-2 bg-[#F4F6F9] dark:bg-btg-900 text-slate-800 dark:text-slate-200 text-xs font-mono font-semibold uppercase tracking-wider border border-slate-300 dark:border-btg-700">
+                + ADICIONAR LOCALIDADE
+              </button>
+            </div>
+
+            <!-- Dados Corporativos (Editáveis Inline) -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 bg-[#F4F6F9] dark:bg-btg-900 border border-slate-300 dark:border-btg-700 text-xs">
+              <div>
+                <label class="text-[10px] font-mono uppercase tracking-wider text-slate-500 block mb-1">RAZÃO SOCIAL / EMPRESA</label>
+                <input v-model="clientDraft.companyName" type="text" placeholder="Nome da Empresa" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2.5 py-1.5 font-semibold text-slate-900 dark:text-white" />
+              </div>
+              <div>
+                <label class="text-[10px] font-mono uppercase tracking-wider text-slate-500 block mb-1">RESPONSÁVEL TÉCNICO</label>
+                <input v-model="clientDraft.contactName" type="text" placeholder="Responsável" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2.5 py-1.5 font-semibold text-slate-900 dark:text-white" />
+              </div>
+              <div>
+                <label class="text-[10px] font-mono uppercase tracking-wider text-slate-500 block mb-1">E-MAIL / TELEFONE</label>
+                <input v-model="clientDraft.contactEmail" type="text" placeholder="Contato" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2.5 py-1.5 font-semibold text-slate-900 dark:text-white" />
+              </div>
+            </div>
+
+            <!-- TABELA / BLOCOS DE EDIÇÃO RÁPIDA DE TODAS AS UNIDADES -->
+            <div class="space-y-4">
+              <div v-for="(site, idx) in clientDraft.sites" :key="site.id" class="p-5 border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-900 space-y-4">
+                
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-btg-700 pb-3">
+                  <div class="flex items-center gap-3 flex-grow">
+                    <span class="px-2.5 py-1 bg-btg-900 dark:bg-mundi-blue text-white text-xs font-mono font-bold">
+                      UNID. {{ String(idx + 1).padStart(2, '0') }}
+                    </span>
+                    <input v-model="site.name" type="text" class="border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-850 px-3 py-1.5 text-xs font-bold uppercase text-slate-900 dark:text-white w-full max-w-xs" />
+                    <div class="flex items-center gap-1.5 text-xs font-mono">
+                      <span class="text-slate-500">QTD LOTE:</span>
+                      <input v-model.number="site.quantity" type="number" min="1" class="w-16 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-850 px-2 py-1 text-xs font-mono font-bold text-center" />
+                    </div>
+                  </div>
+
+                  <button @click="activeClientSiteIndex = idx; clientStep = 2" class="px-3 py-1.5 bg-[#F4F6F9] dark:bg-btg-850 hover:bg-slate-200 text-slate-700 dark:text-slate-200 text-[11px] font-mono uppercase tracking-wider border border-slate-300 dark:border-btg-700">
+                    [ABRIR FORMULÁRIO COMPLETO DA UNIDADE]
+                  </button>
+                </div>
+
+                <!-- Grade Numérica Inline -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 text-xs font-mono">
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">WAN (Q5)</label>
+                    <input v-model.number="site.q5_wanPorts" type="number" min="1" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2 py-1.5 font-bold" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">LAN (Q4)</label>
+                    <input v-model.number="site.q4_lanPorts" type="number" min="1" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2 py-1.5 font-bold" />
+                  </div>
+                  <div class="col-span-2">
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">BANDA TOTAL (Q6)</label>
+                    <div class="flex">
+                      <input v-model.number="site.q6_bandwidthValue" type="number" min="1" step="any" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2 py-1.5 font-bold" />
+                      <select v-model="site.q6_bandwidthUnit" class="border border-l-0 border-slate-300 dark:border-btg-700 bg-slate-100 dark:bg-btg-800 px-1.5 py-1.5 font-bold">
+                        <option value="Mbps">Mbps</option>
+                        <option value="Gbps">Gbps</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">DISP. LAN (Q7)</label>
+                    <input v-model.number="site.q7_lanDevices" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2 py-1.5 font-bold" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">WI-FI (Q8)</label>
+                    <input v-model.number="site.q8_wifiDevices" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2 py-1.5 font-bold" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">VPN (Q3)</label>
+                    <input v-model.number="site.q3_mobileVpnUsers" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2 py-1.5 font-bold" />
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">VOIP (Q11)</label>
+                    <input v-model.number="site.q11_voipExtensions" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2 py-1.5 font-bold" />
+                  </div>
+                </div>
+
+                <!-- Licenciamento e Adicionais Inline -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-slate-200 dark:border-btg-700 text-xs items-center">
+                  <div>
+                    <label class="block text-[10px] font-mono font-semibold text-slate-500 uppercase mb-1">MODALIDADE DE LICENÇA (Q12)</label>
+                    <select v-model="site.q12_securityPlan" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2.5 py-1.5 font-mono font-bold text-slate-900 dark:text-white">
+                      <option value="UTP (Unified Threat Protection)">UTP (Unified Threat Protection)</option>
+                      <option value="FortiCare">FortiCare</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-mono font-semibold text-slate-500 uppercase mb-1">ALTA DISPONIBILIDADE (Q10)</label>
+                    <select v-model="site.q10_haMode" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-2.5 py-1.5 font-mono font-bold text-slate-900 dark:text-white">
+                      <option value="Não">Não (1 Equipamento)</option>
+                      <option value="Sim - Ativo/Passivo">Sim - Ativo/Passivo (2x)</option>
+                      <option value="Sim - Ativo/Ativo">Sim - Ativo/Ativo (2x)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <span class="block text-[10px] font-mono font-semibold text-slate-500 uppercase mb-1">SOMA USUÁRIOS & SERVIÇOS (Q13)</span>
+                    <div class="text-[11px] font-mono text-slate-700 dark:text-slate-300 truncate">
+                      <strong>{{ siteTotalUsers(site) }} DISP.</strong> // {{ formatSiteAddonsSummary(site) }}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-200 dark:border-btg-700">
+              <button @click="clientStep = 2" class="px-5 py-3 bg-[#F4F6F9] dark:bg-btg-900 text-slate-700 dark:text-slate-200 font-mono font-semibold text-xs uppercase tracking-wider border border-slate-300 dark:border-btg-700">
+                &larr; VOLTAR PARA EDIÇÃO POR UNIDADE
+              </button>
+              <button @click="finishClientJourney" class="px-8 py-3.5 bg-btg-900 dark:bg-mundi-blue hover:bg-btg-800 text-white font-mono font-bold text-xs uppercase tracking-widest transition">
+                HOMOLOGAR E ENVIAR QPV PARA ENGENHARIA MUNDIVOX &rarr;
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ========================================================= -->
+        <!-- PASSO 04 DO CLIENTE: PROTOCOLO EXECUTIVO DE RECEBIMENTO   -->
+        <!-- ========================================================= -->
+        <div v-if="clientStep === 4" class="bg-white dark:bg-btg-850 p-8 sm:p-10 border border-slate-300 dark:border-btg-700 space-y-6 max-w-3xl mx-auto">
+          <div class="border-l-4 border-mundi-blue pl-5 py-1 space-y-1">
+            <span class="text-[10px] font-mono font-semibold uppercase tracking-widest text-mundi-blue dark:text-mundi-cyan">
+              CONFIRMAÇÃO DE TRANSMISSÃO TÉCNICA
+            </span>
+            <h3 class="text-xl font-bold text-slate-900 dark:text-white uppercase tracking-wide">
+              Questionário de Pré-Venda (QPV) Registrado
+            </h3>
+          </div>
+
+          <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Prezado(a) <strong>{{ clientDraft.contactName || clientDraft.companyName }}</strong>, o levantamento técnico contemplando <strong>{{ totalMappedUnitsCount(clientDraft) }} localidade(s)</strong> foi gravado com sucesso e disponibilizado para a Engenharia de Pré-Venda da Mundivox.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-200 dark:border-btg-700">
+            <button @click="exportSingleQpvJson(clientDraft)" class="px-5 py-2.5 bg-btg-900 text-white text-xs font-mono font-semibold uppercase tracking-wider border border-btg-700">
+              EXPORTAR ARQUIVO TÉCNICO (.JSON)
+            </button>
+            <button @click="openConsultantDirectWithLastSubmission" class="px-5 py-2.5 bg-mundi-blue hover:bg-blue-700 text-white text-xs font-mono font-semibold uppercase tracking-wider">
+              ABRIR DIMENSIONAMENTO NO CONSOLE DO CONSULTOR &rarr;
+            </button>
+            <button @click="startNewClientDraft" class="px-4 py-2.5 bg-[#F4F6F9] dark:bg-btg-900 text-slate-700 dark:text-slate-300 text-xs font-mono uppercase tracking-wider border border-slate-300 dark:border-btg-700">
+              NOVO FORMULÁRIO
+            </button>
+          </div>
+        </div>
+
+      </main>
+
+      <!-- ========================================================================= -->
+      <!-- TELA 2: ÁREA RESTRITA DO CONSULTOR MUNDIVOX (BARRA DIREITA FIXA STICKY)   -->
+      <!-- ========================================================================= -->
+      <main v-if="appMode === 'consultant'" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        
+        <!-- BARRA DE CONTROLE DO CONSULTOR -->
+        <div class="bg-white dark:bg-btg-850 p-4 border border-slate-300 dark:border-btg-700 flex flex-wrap items-center justify-between gap-4 no-print">
+          
+          <div class="flex flex-wrap items-center gap-3">
+            <span class="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">PROJETO QPV:</span>
+
+            <select v-model="selectedSubmissionId" @change="selectedSiteIndex = 0" class="border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 px-3.5 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white outline-none">
+              <option v-for="sub in submissions" :key="sub.id" :value="sub.id">
+                {{ sub.companyName }} [{{ totalMappedUnitsCount(sub) }} UNID. — {{ sub.submittedAt }}]
+              </option>
+            </select>
+
+            <button @click="createNewSubmissionInConsultant" class="px-3.5 py-2 bg-[#F4F6F9] dark:bg-btg-900 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-mono font-semibold uppercase border border-slate-300 dark:border-btg-700">
+              + NOVO QPV
+            </button>
+
+            <label class="px-3.5 py-2 bg-[#F4F6F9] dark:bg-btg-900 hover:bg-slate-200 text-slate-800 dark:text-slate-200 text-xs font-mono font-semibold uppercase cursor-pointer border border-slate-300 dark:border-btg-700">
+              IMPORTAR JSON
+              <input type="file" accept=".json" @change="importQpvJson" class="hidden" />
+            </label>
+          </div>
+
+          <!-- Sub-Abas Técnicas do Consultor -->
+          <div class="flex items-center border border-slate-300 dark:border-btg-700">
+            <button 
+              @click="consultantTab = 'analyzer'" 
+              :class="consultantTab === 'analyzer' ? 'bg-btg-900 dark:bg-mundi-blue text-white font-semibold' : 'bg-white dark:bg-btg-850 text-slate-600 dark:text-slate-300'"
+              class="px-4 py-2 text-xs font-mono uppercase tracking-wider transition">
+              01. Dimensionamento
+            </button>
+            <button 
+              @click="consultantTab = 'report'" 
+              :class="consultantTab === 'report' ? 'bg-btg-900 dark:bg-mundi-blue text-white font-semibold' : 'bg-white dark:bg-btg-850 text-slate-600 dark:text-slate-300 border-l border-slate-300 dark:border-btg-700'"
+              class="px-4 py-2 text-xs font-mono uppercase tracking-wider transition">
+              02. Parecer Executivo (PDF)
+            </button>
+            <button 
+              @click="consultantTab = 'specs'" 
+              :class="consultantTab === 'specs' ? 'bg-btg-900 dark:bg-mundi-blue text-white font-semibold' : 'bg-white dark:bg-btg-850 text-slate-600 dark:text-slate-300 border-l border-slate-300 dark:border-btg-700'"
+              class="px-4 py-2 text-xs font-mono uppercase tracking-wider transition">
+              03. Matriz RAM & Datasheets
+            </button>
+          </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- ABA 01 DO CONSULTOR: AUDITORIA + PAINEL DIREITO FIXO (STICKY)             -->
+        <!-- ========================================================================= -->
+        <div v-if="consultantTab === 'analyzer' && currentSubmission" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start no-print">
+          
+          <!-- COLUNA ESQUERDA (7 COLUNAS): UNIDADES E PARÂMETROS DO QPV -->
+          <div class="lg:col-span-7 space-y-6">
+            
+            <!-- Quadro Consolidado de Unidades do Projeto -->
+            <div class="bg-white dark:bg-btg-850 border border-slate-300 dark:border-btg-700">
+              <div class="bg-btg-900 text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-2 border-b border-btg-700">
+                <div>
+                  <span class="text-[10px] font-mono uppercase tracking-widest text-mundi-cyan block">CARTEIRA DE PROJETO</span>
+                  <h2 class="text-sm font-bold uppercase tracking-wide">{{ currentSubmission.companyName }} — {{ totalMappedUnitsCount(currentSubmission) }} Localidade(s)</h2>
+                </div>
+                <div class="text-xs font-mono text-slate-300">
+                  RESP.: {{ currentSubmission.contactName || 'N/A' }}
+                </div>
+              </div>
+
+              <!-- Lista de Unidades Mapeadas -->
+              <div class="p-4 bg-[#F4F6F9] dark:bg-btg-900 border-b border-slate-300 dark:border-btg-700">
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    SELECIONE A UNIDADE PARA INSPECIONAR O DIMENSIONAMENTO À DIREITA:
+                  </span>
+                  <button @click="addSiteToCurrentSubmission" class="text-[11px] font-mono font-semibold text-mundi-blue dark:text-mundi-cyan uppercase hover:underline">
+                    [+ ADICIONAR FILIAL]
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div v-for="(siteEval, idx) in evaluatedSubmissionSites" :key="siteEval.site.id"
+                    @click="selectedSiteIndex = idx"
+                    :class="selectedSiteIndex === idx ? 'border-2 border-mundi-blue dark:border-mundi-cyan bg-white dark:bg-btg-800' : 'border border-slate-300 dark:border-btg-700 bg-white/80 dark:bg-btg-850 hover:bg-white'"
+                    class="p-3.5 cursor-pointer transition flex items-center justify-between gap-2">
+                    <div>
+                      <div class="flex items-center gap-2">
+                        <span class="font-mono text-[10px] font-bold text-slate-400">[{{ String(idx + 1).padStart(2, '0') }}]</span>
+                        <span class="font-bold text-xs uppercase text-slate-900 dark:text-white">{{ siteEval.site.name }}</span>
+                        <span v-if="siteEval.site.quantity > 1" class="text-[10px] font-mono px-1.5 py-0.5 bg-slate-200 dark:bg-btg-700 text-slate-800 dark:text-mundi-cyan font-bold">
+                          {{ siteEval.site.quantity }}x
+                        </span>
+                      </div>
+                      <div class="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-1">
+                        {{ formatMbps(siteEval.requiredBandwidthMbps) }} | {{ siteEval.totalUsersWithGrowth }} DISP. | {{ siteEval.site.q12_securityPlan === 'FortiCare' ? 'FORTICARE' : 'UTP' }}
+                      </div>
+                    </div>
+                    <div class="text-right shrink-0">
+                      <span v-if="siteEval.recommendedBox" class="inline-block px-2.5 py-1 bg-btg-900 text-mundi-cyan font-mono font-bold text-xs border border-btg-700">
+                        {{ siteEval.totalAppliancesForThisSiteGroup }}x {{ siteEval.recommendedBox.sku }}
+                      </span>
+                      <span v-else class="inline-block px-2 py-1 bg-red-900 text-white font-mono font-bold text-[10px]">
+                        ACIMA 200G
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Resumo de Quantitativos (BOM) -->
+              <div class="px-5 py-3 bg-white dark:bg-btg-850 flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                <span class="font-semibold text-slate-600 dark:text-slate-300 uppercase">
+                  CONSOLIDADO DE HARDWARE DO PROJETO (BOM):
+                </span>
+                <div class="flex flex-wrap gap-2">
+                  <span v-for="(count, sku) in projectBomSummary" :key="sku" class="px-2.5 py-1 bg-btg-900 dark:bg-mundi-blue text-white font-bold text-xs">
+                    {{ count }}x {{ sku }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- AUDITORIA DE PARÂMETROS DO QPV DA UNIDADE ATIVA -->
+            <div v-if="currentConsultantSite" class="bg-white dark:bg-btg-850 border border-slate-300 dark:border-btg-700 divide-y divide-slate-200 dark:divide-btg-700">
+              
+              <div class="p-5 bg-btg-900 text-white flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <span class="text-[10px] font-mono uppercase tracking-widest text-mundi-cyan block">AUDITORIA DE REQUISITOS POR LOCALIDADE</span>
+                  <h3 class="text-sm font-bold uppercase tracking-wide">Unidade: {{ currentConsultantSite.name }}</h3>
+                </div>
+                <div class="flex items-center gap-2 font-mono text-xs">
+                  <span class="text-slate-300">LOTE IDÊNTICO:</span>
+                  <input v-model.number="currentConsultantSite.quantity" type="number" min="1" class="w-16 bg-btg-800 border border-btg-600 px-2.5 py-1 text-xs font-bold text-white text-center" />
+                </div>
+              </div>
+
+              <!-- Q4, Q5, Q6 -->
+              <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">04. INTERFACES LAN</label>
+                  <input v-model.number="currentConsultantSite.q4_lanPorts" type="number" min="1" class="w-full border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 px-3 py-2 text-sm font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">05. INTERFACES WAN</label>
+                  <input v-model.number="currentConsultantSite.q5_wanPorts" type="number" min="1" class="w-full border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 px-3 py-2 text-sm font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">06. BANDA TOTAL (WAN+MPLS)</label>
+                  <div class="flex">
+                    <input v-model.number="currentConsultantSite.q6_bandwidthValue" type="number" min="1" step="any" class="w-full border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 px-3 py-2 text-sm font-bold" />
+                    <select v-model="currentConsultantSite.q6_bandwidthUnit" class="border border-l-0 border-slate-300 dark:border-btg-700 bg-slate-100 dark:bg-btg-800 px-2 py-2 text-xs font-bold">
+                      <option value="Mbps">Mbps</option>
+                      <option value="Gbps">Gbps</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Q3, Q7, Q8, Q11 -->
+              <div class="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#F4F6F9] dark:bg-btg-900/50 font-mono">
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">03. MOBILE VPN</label>
+                  <input v-model.number="currentConsultantSite.q3_mobileVpnUsers" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">07. DISP. LAN</label>
+                  <input v-model.number="currentConsultantSite.q7_lanDevices" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">08. DISP. WI-FI</label>
+                  <input v-model.number="currentConsultantSite.q8_wifiDevices" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">11. RAMAIS VOIP</label>
+                  <input v-model.number="currentConsultantSite.q11_voipExtensions" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-white dark:bg-btg-850 px-3 py-2 text-sm font-bold" />
+                </div>
+              </div>
+
+              <!-- Q10, Q12, Q1/Q2 -->
+              <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4 font-mono">
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">12. LICENÇA DA UNIDADE</label>
+                  <select v-model="currentConsultantSite.q12_securityPlan" class="w-full border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 px-3 py-2 text-xs font-bold">
+                    <option value="UTP (Unified Threat Protection)">UTP (Unified Threat Protection)</option>
+                    <option value="FortiCare">FortiCare</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">10. CLUSTER HA</label>
+                  <select v-model="currentConsultantSite.q10_haMode" class="w-full border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 px-3 py-2 text-xs font-bold">
+                    <option value="Não">Não (1x Caixa)</option>
+                    <option value="Sim - Ativo/Passivo">Sim - Ativo/Passivo (2x)</option>
+                    <option value="Sim - Ativo/Ativo">Sim - Ativo/Ativo (2x)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-400 mb-1">01 & 02. VPNS / TÚNEIS</label>
+                  <div class="grid grid-cols-2 gap-2">
+                    <input v-model.number="currentConsultantSite.q1_vpnSiteToSite" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 px-2.5 py-2 text-xs font-bold text-center" />
+                    <input v-model.number="currentConsultantSite.q2_vpnTunnels" type="number" min="0" class="w-full border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 px-2.5 py-2 text-xs font-bold text-center" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Q13: Status Técnico dos Serviços Adicionais -->
+              <div class="p-5 space-y-3">
+                <h4 class="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">
+                  13. SERVIÇOS ADICIONAIS E SOLICITAÇÕES DE APOIO CONSULTIVO
+                </h4>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+                  <div class="p-3 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900">
+                    <div class="flex items-center justify-between font-bold mb-1">
+                      <span>FORTIAP</span>
+                      <span :class="currentConsultantSite.addons?.fortiAP?.enabled ? 'text-mundi-blue dark:text-mundi-cyan' : 'text-slate-400'">
+                        {{ currentConsultantSite.addons?.fortiAP?.enabled ? '[SOLICITADO]' : '[NÃO APLICÁVEL]' }}
+                      </span>
+                    </div>
+                    <div v-if="currentConsultantSite.addons?.fortiAP?.enabled" class="text-[11px] text-slate-700 dark:text-slate-300">
+                      <span v-if="currentConsultantSite.addons.fortiAP.needConsultant" class="inline-block px-2 py-0.5 bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold">
+                        [!] SOLICITOU APOIO DE CONSULTOR
+                      </span>
+                      <span v-else>
+                        QTD: {{ currentConsultantSite.addons.fortiAP.qty }} | MOD: {{ currentConsultantSite.addons.fortiAP.model || 'PADRÃO' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="p-3 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900">
+                    <div class="flex items-center justify-between font-bold mb-1">
+                      <span>FORTISWITCH</span>
+                      <span :class="currentConsultantSite.addons?.fortiSwitch?.enabled ? 'text-mundi-blue dark:text-mundi-cyan' : 'text-slate-400'">
+                        {{ currentConsultantSite.addons?.fortiSwitch?.enabled ? '[SOLICITADO]' : '[NÃO APLICÁVEL]' }}
+                      </span>
+                    </div>
+                    <div v-if="currentConsultantSite.addons?.fortiSwitch?.enabled" class="text-[11px] text-slate-700 dark:text-slate-300">
+                      <span v-if="currentConsultantSite.addons.fortiSwitch.needConsultant" class="inline-block px-2 py-0.5 bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold">
+                        [!] SOLICITOU APOIO DE CONSULTOR
+                      </span>
+                      <span v-else>
+                        QTD: {{ currentConsultantSite.addons.fortiSwitch.qty }} | MOD: {{ currentConsultantSite.addons.fortiSwitch.model || 'PADRÃO' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="p-3 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900">
+                    <div class="flex items-center justify-between font-bold mb-1">
+                      <span>FORTIANALYZER</span>
+                      <span :class="currentConsultantSite.addons?.fortiAnalyzer?.enabled ? 'text-mundi-blue dark:text-mundi-cyan' : 'text-slate-400'">
+                        {{ currentConsultantSite.addons?.fortiAnalyzer?.enabled ? '[SOLICITADO]' : '[NÃO APLICÁVEL]' }}
+                      </span>
+                    </div>
+                    <div v-if="currentConsultantSite.addons?.fortiAnalyzer?.enabled" class="text-[11px] text-slate-700 dark:text-slate-300">
+                      VOL.: {{ currentConsultantSite.addons.fortiAnalyzer.volumetry || 'NÃO ESPECIFICADA' }}
+                    </div>
+                  </div>
+
+                  <div class="p-3 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900">
+                    <div class="flex items-center justify-between font-bold mb-1">
+                      <span>FORTIMANAGER</span>
+                      <span :class="currentConsultantSite.addons?.fortiManager?.enabled ? 'text-mundi-blue dark:text-mundi-cyan' : 'text-slate-400'">
+                        {{ currentConsultantSite.addons?.fortiManager?.enabled ? '[SOLICITADO]' : '[NÃO APLICÁVEL]' }}
+                      </span>
+                    </div>
+                    <div v-if="currentConsultantSite.addons?.fortiManager?.enabled" class="text-[11px] text-slate-700 dark:text-slate-300">
+                      VOL.: {{ currentConsultantSite.addons.fortiManager.volumetry || 'NÃO ESPECIFICADA' }}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ========================================================================= -->
+          <!-- COLUNA DIREITA FIXA (5 COLUNAS - STICKY): CAIXA, JUSTIFICATIVA E DESCARTE -->
+          <!-- ========================================================================= -->
+          <div v-if="activeSiteEvaluation" class="lg:col-span-5 lg:sticky lg:top-20 space-y-5 self-start">
+            
+            <!-- PAINEL PRINCIPAL: APPLIANCE HOMOLOGADO -->
+            <div class="bg-white dark:bg-btg-850 border-2 border-btg-900 dark:border-mundi-cyan shadow-lg">
+              
+              <div class="bg-btg-900 text-white px-5 py-3.5 flex items-center justify-between border-b border-btg-700">
+                <h2 class="text-xs font-mono font-bold uppercase tracking-wider">
+                  PARECER TÉCNICO // {{ activeSiteEvaluation.site.name }}
+                </h2>
+                <span class="text-[10px] text-mundi-cyan font-mono uppercase">
+                  ONLINE ENGINE
+                </span>
+              </div>
+
+              <!-- Caso exceda o FG-200G -->
+              <div v-if="!activeSiteEvaluation.recommendedBox" class="p-6 bg-red-50 dark:bg-red-950/40 space-y-2">
+                <h3 class="text-sm font-mono font-bold uppercase text-red-900 dark:text-red-200">CAPACIDADE SUPERIOR AO FORTIGATE 200G</h3>
+                <p class="text-xs text-red-800 dark:text-red-300 font-mono">
+                  Requisito: {{ formatMbps(activeSiteEvaluation.requiredBandwidthMbps) }} | {{ activeSiteEvaluation.totalUsersWithGrowth }} disp. | {{ activeSiteEvaluation.totalRequiredPorts }} portas.
+                </p>
+              </div>
+
+              <!-- Especificação da Caixa Dimensionada -->
+              <div v-else class="p-5 space-y-4">
+                
+                <div class="flex items-start justify-between gap-3 border-b border-slate-200 dark:border-btg-700 pb-4">
+                  <div>
+                    <div class="flex flex-wrap items-center gap-1.5 mb-2 font-mono">
+                      <span class="px-2 py-0.5 text-[10px] font-bold bg-btg-900 text-mundi-cyan uppercase">
+                        HOMOLOGADO
+                      </span>
+                      <span class="px-2 py-0.5 text-[10px] font-bold bg-[#F4F6F9] dark:bg-btg-900 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-btg-700">
+                        {{ activeSiteEvaluation.recommendedBox.ramGb }} GB RAM
+                      </span>
+                      <span class="px-2 py-0.5 text-[10px] font-bold bg-[#F4F6F9] dark:bg-btg-900 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-btg-700">
+                        {{ activeSiteEvaluation.recommendedBox.formFactor }}
+                      </span>
+                    </div>
+                    <h3 class="text-2xl font-mono font-bold text-slate-900 dark:text-white tracking-tight">
+                      {{ activeSiteEvaluation.appliancesPerSite }}x {{ activeSiteEvaluation.recommendedBox.name }}
+                    </h3>
+                    <p class="text-xs font-mono text-slate-500 dark:text-slate-400 mt-1">
+                      SKU: <strong class="text-slate-900 dark:text-white">{{ activeSiteEvaluation.recommendedBox.sku }}</strong> | LICENÇA: <strong class="text-mundi-blue dark:text-mundi-cyan">{{ activeSiteEvaluation.site.q12_securityPlan }}</strong>
+                    </p>
+                    <p v-if="activeSiteEvaluation.site.quantity > 1" class="text-xs font-mono font-bold text-mundi-blue dark:text-mundi-cyan mt-1">
+                      LOTE DE {{ activeSiteEvaluation.site.quantity }} UNIDADES: TOTAL DE {{ activeSiteEvaluation.totalAppliancesForThisSiteGroup }}x APPLIANCES
+                    </p>
+                  </div>
+
+                  <div class="bg-btg-900 dark:bg-mundi-blue text-white px-4 py-3 text-center shrink-0 font-mono">
+                    <div class="text-lg font-bold leading-none">{{ activeSiteEvaluation.appliancesPerSite }} UN</div>
+                    <div class="text-[9px] uppercase mt-1 tracking-wider">
+                      {{ activeSiteEvaluation.appliancesPerSite === 2 ? 'CLUSTER HA' : 'STANDALONE' }}
+                    </div>
+                  </div>
+                </div>
+
+                <!-- JUSTIFICATIVA TÉCNICA DA ESCOLHA -->
+                <div class="p-4 bg-[#F4F6F9] dark:bg-btg-900 border-l-4 border-mundi-blue border border-slate-300 dark:border-btg-700 space-y-1.5">
+                  <div class="text-[11px] font-mono font-bold uppercase text-slate-900 dark:text-white">
+                    JUSTIFICATIVA DE ENGENHARIA (POR QUE ESTA CAIXA?):
+                  </div>
+                  <p class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                    Appliance de <strong>menor porte/custo</strong> que satisfaz simultaneamente a banda de <strong>{{ formatMbps(activeSiteEvaluation.requiredBandwidthMbps) }}</strong> (capacidade Threat Protection de {{ formatMbps(activeSiteEvaluation.recommendedBox.threatProtectionMbps) }}), comporta <strong>{{ activeSiteEvaluation.totalUsersWithGrowth }} usuários/dispositivos</strong> dentro do limite de <strong>{{ activeSiteEvaluation.recommendedBox.ramGb }} GB de RAM</strong> (máx. {{ activeSiteEvaluation.recommendedBox.maxUsersByRam }}) e disponibiliza <strong>{{ activeSiteEvaluation.recommendedBox.totalConfigurablePorts }} portas físicas</strong> para as {{ activeSiteEvaluation.totalRequiredPorts }} exigidas.
+                  </p>
+                </div>
+
+                <!-- MÉTRICAS DE OCUPAÇÃO TABULARES -->
+                <div class="space-y-2.5 font-mono text-xs">
+                  <div class="p-3 bg-[#F4F6F9] dark:bg-btg-900 border border-slate-300 dark:border-btg-700">
+                    <div class="flex justify-between font-bold mb-1.5">
+                      <span>01. BANDA (Q6 vs THREAT PROTECTION)</span>
+                      <span class="text-mundi-blue dark:text-mundi-cyan">{{ formatMbps(activeSiteEvaluation.requiredBandwidthMbps) }} / {{ formatMbps(activeSiteEvaluation.recommendedBox.threatProtectionMbps) }}</span>
+                    </div>
+                    <div class="w-full bg-slate-300 dark:bg-btg-700 h-1.5 overflow-hidden">
+                      <div class="bg-mundi-blue dark:bg-mundi-cyan h-full" :style="{ width: Math.min(100, (activeSiteEvaluation.requiredBandwidthMbps / activeSiteEvaluation.recommendedBox.threatProtectionMbps) * 100) + '%' }"></div>
+                    </div>
+                  </div>
+
+                  <div class="p-3 bg-[#F4F6F9] dark:bg-btg-900 border border-slate-300 dark:border-btg-700">
+                    <div class="flex justify-between font-bold mb-1.5">
+                      <span>02. USUÁRIOS (RAM {{ activeSiteEvaluation.recommendedBox.ramGb }}GB)</span>
+                      <span class="text-mundi-blue dark:text-mundi-cyan">{{ activeSiteEvaluation.totalUsersWithGrowth }} / {{ activeSiteEvaluation.recommendedBox.maxUsersByRam }} MÁX</span>
+                    </div>
+                    <div class="w-full bg-slate-300 dark:bg-btg-700 h-1.5 overflow-hidden mb-1.5">
+                      <div class="bg-btg-900 dark:bg-emerald-500 h-full" :style="{ width: Math.min(100, (activeSiteEvaluation.totalUsersWithGrowth / activeSiteEvaluation.recommendedBox.maxUsersByRam) * 100) + '%' }"></div>
+                    </div>
+                    <div class="text-[10px] text-slate-500 dark:text-slate-400">
+                      CÁLCULO: {{ activeSiteEvaluation.site.q3_mobileVpnUsers }} VPN + {{ activeSiteEvaluation.site.q7_lanDevices }} LAN + {{ activeSiteEvaluation.site.q8_wifiDevices }} WIFI + {{ activeSiteEvaluation.site.q11_voipExtensions }} VOIP = {{ activeSiteEvaluation.totalUsersWithGrowth }}
+                    </div>
+                  </div>
+
+                  <div class="p-3 bg-[#F4F6F9] dark:bg-btg-900 border border-slate-300 dark:border-btg-700">
+                    <div class="flex justify-between font-bold">
+                      <span>03. INTERFACES (Q4 LAN + Q5 WAN)</span>
+                      <span>{{ activeSiteEvaluation.totalRequiredPorts }} EXIGIDAS / {{ activeSiteEvaluation.recommendedBox.totalConfigurablePorts }} FÍSICAS</span>
+                    </div>
+                    <div class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                      {{ activeSiteEvaluation.recommendedBox.portsDescription }}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- PAINEL SECUNDÁRIO: POR QUE AS DEMAIS CAIXAS FORAM DESCARTADAS -->
+            <div class="bg-white dark:bg-btg-850 border border-slate-300 dark:border-btg-700">
+              <div class="px-5 py-3 bg-btg-900 text-white border-b border-btg-700">
+                <h3 class="text-xs font-mono font-bold uppercase tracking-wider">
+                  ANÁLISE DE EXCLUSÃO // POR QUE OUTRAS CAIXAS NÃO FORAM CONSIDERADAS
+                </h3>
+              </div>
+
+              <div class="divide-y divide-slate-200 dark:divide-btg-700 max-h-96 overflow-y-auto font-mono">
+                <div v-for="box in activeSiteEvaluation.evaluatedBoxes" :key="box.id"
+                  :class="activeSiteEvaluation.recommendedBox && activeSiteEvaluation.recommendedBox.id === box.id ? 'bg-[#F4F6F9] dark:bg-btg-900' : ''"
+                  class="p-3.5 text-xs space-y-1.5">
+                  
+                  <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                      <span v-if="activeSiteEvaluation.recommendedBox && activeSiteEvaluation.recommendedBox.id === box.id" class="px-2 py-0.5 bg-btg-900 dark:bg-mundi-blue text-white font-bold text-[10px]">
+                        SELECIONADA
+                      </span>
+                      <span v-else-if="box.passedAll" class="px-2 py-0.5 bg-slate-200 dark:bg-btg-700 text-slate-700 dark:text-slate-300 font-semibold text-[10px]">
+                        ACIMA DO NECESSÁRIO
+                      </span>
+                      <span v-else class="px-2 py-0.5 bg-red-100 dark:bg-red-950/70 text-red-800 dark:text-red-300 font-bold text-[10px]">
+                        REPROVADA
+                      </span>
+                      <strong class="text-slate-900 dark:text-white">{{ box.name }}</strong>
+                      <span class="text-[10px] text-slate-500">({{ box.ramGb }}GB | {{ formatMbps(box.threatProtectionMbps) }} | {{ box.totalConfigurablePorts }}P)</span>
+                    </div>
+                  </div>
+
+                  <div v-if="activeSiteEvaluation.recommendedBox && activeSiteEvaluation.recommendedBox.id === box.id" class="text-[11px] text-mundi-blue dark:text-mundi-cyan font-semibold">
+                    &rarr; Modelo exato de menor porte que atende integralmente aos critérios.
+                  </div>
+                  <div v-else-if="box.passedAll" class="text-[11px] text-slate-500 dark:text-slate-400">
+                    &rarr; Atende tecnicamente, mas possui porte e custo superiores ao modelo {{ activeSiteEvaluation.recommendedBox ? activeSiteEvaluation.recommendedBox.name : 'selecionado' }}.
+                  </div>
+                  <div v-else class="space-y-1">
+                    <div v-for="(reason, rIdx) in box.failReasons" :key="rIdx" class="text-[11px] text-red-700 dark:text-red-300">
+                      [X] {{ reason }}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- ABA 02 DO CONSULTOR: PARECER EXECUTIVO IMPRIMÍVEL                         -->
+        <!-- ========================================================================= -->
+        <div v-if="consultantTab === 'report' && currentSubmission" class="space-y-6">
+          <div class="bg-white dark:bg-btg-850 p-4 border border-slate-300 dark:border-btg-700 flex flex-wrap items-center justify-between gap-4 no-print">
+            <button @click="consultantTab = 'analyzer'" class="px-4 py-2 bg-[#F4F6F9] dark:bg-btg-900 text-slate-700 dark:text-slate-200 text-xs font-mono font-semibold uppercase border border-slate-300 dark:border-btg-700">
+              &larr; VOLTAR PARA AUDITORIA
+            </button>
+            <div class="flex items-center gap-2">
+              <button @click="exportSingleQpvJson(currentSubmission)" class="px-4 py-2 bg-btg-900 text-white text-xs font-mono font-semibold uppercase">
+                EXPORTAR JSON
+              </button>
+              <button @click="printConsultantReport" class="px-5 py-2 bg-mundi-blue hover:bg-blue-700 text-white text-xs font-mono font-semibold uppercase">
+                IMPRIMIR / EXPORTAR PDF
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-btg-850 border border-slate-300 dark:border-btg-700 p-8 sm:p-10 max-w-5xl mx-auto space-y-8">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-btg-900 dark:border-slate-600 pb-6">
+              <div>
+                <div class="flex items-center gap-3">
+                  <div class="w-8 h-8 bg-btg-900 text-white flex items-center justify-center font-mono font-bold text-sm">MV</div>
+                  <span class="text-xl font-bold tracking-[0.2em] text-slate-900 dark:text-white uppercase">MUNDIVOX</span>
+                </div>
+                <h2 class="text-sm font-mono font-bold text-slate-700 dark:text-slate-300 uppercase mt-1">Parecer Executivo de Dimensionamento Técnico QPV — FortiGate</h2>
+              </div>
+              <div class="text-xs font-mono text-slate-600 dark:text-slate-300 sm:text-right space-y-1">
+                <div><strong>CLIENTE:</strong> {{ currentSubmission.companyName }}</div>
+                <div><strong>RESPONSÁVEL:</strong> {{ currentSubmission.contactName }}</div>
+                <div><strong>DATA DE EMISSÃO:</strong> {{ currentSubmission.submittedAt }}</div>
+              </div>
+            </div>
+
+            <!-- Tabela Consolidada -->
+            <div class="space-y-3">
+              <h3 class="text-xs font-mono font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                01. QUADRO CONSOLIDADO DE HARDWARE E LICENCIAMENTO POR UNIDADE
+              </h3>
+              <div class="overflow-x-auto border border-slate-300 dark:border-btg-700">
+                <table class="w-full text-left border-collapse text-xs font-mono">
+                  <thead>
+                    <tr class="bg-btg-900 text-white uppercase">
+                      <th class="p-3">Localidade</th>
+                      <th class="p-3">Lote</th>
+                      <th class="p-3">Banda (Q6)</th>
+                      <th class="p-3">Usuários</th>
+                      <th class="p-3">Portas (Q4+Q5)</th>
+                      <th class="p-3">Licença (Q12)</th>
+                      <th class="p-3">Modelo Homologado</th>
+                      <th class="p-3">Total Caixas</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-200 dark:divide-btg-700">
+                    <tr v-for="item in evaluatedSubmissionSites" :key="item.site.id">
+                      <td class="p-3 font-bold text-slate-900 dark:text-white">{{ item.site.name }}</td>
+                      <td class="p-3">{{ item.site.quantity }}</td>
+                      <td class="p-3 font-semibold text-mundi-blue dark:text-mundi-cyan">{{ formatMbps(item.requiredBandwidthMbps) }}</td>
+                      <td class="p-3">{{ item.totalUsersWithGrowth }}</td>
+                      <td class="p-3">{{ item.totalRequiredPorts }} ({{ item.site.q4_lanPorts }}L+{{ item.site.q5_wanPorts }}W)</td>
+                      <td class="p-3">{{ item.site.q12_securityPlan }}</td>
+                      <td class="p-3 font-bold">{{ item.recommendedBox ? item.recommendedBox.name + ' (' + item.recommendedBox.ramGb + 'GB)' : 'ACIMA 200G' }}</td>
+                      <td class="p-3 font-bold">{{ item.recommendedBox ? item.totalAppliancesForThisSiteGroup + 'x ' + item.recommendedBox.sku : '-' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Memória de Cálculo por Unidade -->
+            <div class="space-y-4">
+              <h3 class="text-xs font-mono font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+                02. MEMÓRIA DE CÁLCULO E JUSTIFICATIVA TÉCNICA POR LOCALIDADE
+              </h3>
+              <div v-for="item in evaluatedSubmissionSites" :key="item.site.id" class="p-5 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 space-y-2 print-break-avoid">
+                <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-300 dark:border-btg-700 pb-2 font-mono">
+                  <strong class="text-xs uppercase text-slate-900 dark:text-white">{{ item.site.quantity }}x {{ item.site.name }}</strong>
+                  <span v-if="item.recommendedBox" class="px-3 py-1 bg-btg-900 text-white text-xs font-bold">
+                    {{ item.totalAppliancesForThisSiteGroup }}x {{ item.recommendedBox.name }} — {{ item.site.q12_securityPlan }}
+                  </span>
+                </div>
+                <p v-if="item.recommendedBox" class="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                  <strong>Parecer de Engenharia:</strong> O appliance <strong>{{ item.recommendedBox.name }}</strong> atende à demanda de {{ formatMbps(item.requiredBandwidthMbps) }} (suporta {{ formatMbps(item.recommendedBox.threatProtectionMbps) }} em Threat Protection), comporta {{ item.totalUsersWithGrowth }} usuários/dispositivos dentro da capacidade de {{ item.recommendedBox.maxUsersByRam }} usuários dos seus {{ item.recommendedBox.ramGb }} GB de RAM e disponibiliza {{ item.recommendedBox.totalConfigurablePorts }} portas físicas para as {{ item.totalRequiredPorts }} exigidas.
+                </p>
+                <p class="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                  MÓDULOS ADICIONAIS (Q13): {{ formatSiteAddonsSummary(item.site) }} | ALTA DISPONIBILIDADE (Q10): {{ item.site.q10_haMode }}.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- ABA 03 DO CONSULTOR: MATRIZ DE RAM & DATASHEETS                           -->
+        <!-- ========================================================================= -->
+        <div v-if="consultantTab === 'specs'" class="bg-white dark:bg-btg-850 p-6 border border-slate-300 dark:border-btg-700 space-y-4 no-print">
+          <div class="border-l-2 border-mundi-blue pl-3">
+            <span class="text-[10px] font-mono uppercase tracking-widest text-mundi-blue dark:text-mundi-cyan block">TABELA DE ENGENHARIA MUNDIVOX</span>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white uppercase tracking-wide">Matriz de Capacidade por Memória RAM e Datasheets FortiGate</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">
+              O modelo <strong>FortiGate 30G</strong> está parametrizado com limite estrito de 50 usuários. Os tetos podem ser calibrados abaixo:
+            </p>
+          </div>
+
+          <div class="overflow-x-auto border border-slate-300 dark:border-btg-700">
+            <table class="w-full text-left border-collapse text-xs font-mono">
+              <thead>
+                <tr class="bg-btg-900 text-white uppercase text-[11px]">
+                  <th class="p-3">Appliance</th>
+                  <th class="p-3">RAM Física</th>
+                  <th class="p-3 bg-mundi-blue">Limite Usuários (RAM)</th>
+                  <th class="p-3">Threat Protection (Q6)</th>
+                  <th class="p-3">Interfaces (Q4+Q5)</th>
+                  <th class="p-3">Composição Física de Portas</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-200 dark:divide-btg-700">
+                <tr v-for="box in firewallModels" :key="box.id">
+                  <td class="p-3 font-bold text-slate-900 dark:text-white">{{ box.name }} ({{ box.sku }})</td>
+                  <td class="p-3">
+                    <input v-model.number="box.ramGb" type="number" min="1" class="w-16 border border-slate-300 dark:border-btg-700 bg-[#F4F6F9] dark:bg-btg-900 px-2 py-1 font-bold text-center" /> GB
+                  </td>
+                  <td class="p-3 bg-[#F4F6F9] dark:bg-btg-900">
+                    <input v-model.number="box.maxUsersByRam" type="number" min="1" class="w-20 border border-mundi-blue bg-white dark:bg-btg-850 px-2 py-1 font-bold text-center" /> DISP.
+                  </td>
+                  <td class="p-3 font-bold text-mundi-blue dark:text-mundi-cyan">{{ formatMbps(box.threatProtectionMbps) }}</td>
+                  <td class="p-3 font-bold">{{ box.totalConfigurablePorts }} PORTAS</td>
+                  <td class="p-3 text-slate-500 dark:text-slate-400">{{ box.portsDescription }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </main>
+
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        // Estado de Tema (Modo Claro / Modo Escuro inspirado no BTG & Mundivox)
+        const darkMode = ref(false);
+
+        // Modo principal: 'landing' | 'client' | 'consultant'
+        const appMode = ref('landing');
+        const showPinModal = ref(false);
+        const pinInput = ref('');
+        const pinError = ref(false);
+        const isConsultantAuthenticated = ref(false);
+        const toastMessage = ref('');
+
+        // Modal "i" de Informação dos Serviços Adicionais (Q13)
+        const activeServiceInfoKey = ref(null);
+        const serviceCatalog = {
+          fortiAP: {
+            title: 'FortiAP — Access Points Wi-Fi 6 Corporativos',
+            shortDesc: 'Pontos de acesso sem fio gerenciados diretamente pelo controlador integrado do Firewall FortiGate.',
+            details: 'Permite criar múltiplas redes Wi-Fi (Corporativa, Visitantes, IoT) com inspeção de segurança diretamente na borda, sem necessidade de controladora física separada.',
+            whenToUse: 'Indicado quando a unidade precisa de cobertura Wi-Fi corporativa segura integrada às políticas de usuários do Firewall.'
+          },
+          fortiSwitch: {
+            title: 'FortiSwitch — Switches Ethernet Gerenciados via FortiLink',
+            shortDesc: 'Switches corporativos (24 ou 48 portas, com ou sem PoE) gerenciados em tela única pelo próprio FortiGate.',
+            details: 'Através do protocolo FortiLink, cada porta do Switch passa a ser vista como uma extensão segura do Firewall, facilitando VLANs, segmentação de rede e alimentação PoE para câmeras, telefones IP e FortiAPs.',
+            whenToUse: 'Indicado quando faltam portas LAN no Firewall ou quando o cliente deseja substituir switches legados por uma rede cabeada gerenciada centralmente.'
+          },
+          fortiAnalyzer: {
+            title: 'FortiAnalyzer — Retenção de Logs, Auditoria e LGPD',
+            shortDesc: 'Plataforma dedicada para armazenamento centralizado de logs, correlação de eventos e relatórios executivos.',
+            details: 'Como muitos modelos de firewall não possuem disco interno para retenção prolongada de logs históricos, o FortiAnalyzer armazena meses ou anos de registros de tráfego e ataques para auditoria e conformidade.',
+            whenToUse: 'Indicado para empresas que precisam de histórico de navegação/segurança, relatórios de auditoria ou conformidade com LGPD/ISO.'
+          },
+          fortiManager: {
+            title: 'FortiManager — Gerência Centralizada NOC (Single-Pane-of-Glass)',
+            shortDesc: 'Console centralizado para administrar políticas, firmware e SD-WAN de múltiplas unidades.',
+            details: 'Permite que a equipe de TI ou NOC gerencie dezenas ou centenas de Firewalls FortiGate, FortiSwitches e FortiAPs a partir de uma única interface, automatizando provisionamento e evitando erros manuais.',
+            whenToUse: 'Indicado para redes com múltiplas filiais ou ambientes que exigem governança centralizada de mudanças de regras de firewall.'
+          }
+        };
+
+        // Controle do Fluxo do Cliente
+        const clientStep = ref(1);
+        const activeClientSiteIndex = ref(0);
+
+        // Controle do Painel do Consultor
+        const consultantTab = ref('analyzer');
+        const selectedSubmissionId = ref('sub-demo-1');
+        const selectedSiteIndex = ref(0);
+
+        // MATRIZ DE HARDWARE EXTRAÍDA DOS 8 DATASHEETS + MEMÓRIA RAM (30G = 50 USUÁRIOS)
+        const firewallModels = reactive([
+          {
+            id: 'fg-30g',
+            name: 'FortiGate 30G',
+            sku: 'FG-30G',
+            series: 'G',
+            tierOrder: 1,
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 50,
+            threatProtectionMbps: 500,
+            ngfwMbps: 570,
+            ipsMbps: 800,
+            totalConfigurablePorts: 4,
+            portsDescription: '4x GE RJ45 (1x WAN + 2x Internas + 1x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-40f',
+            name: 'FortiGate 40F',
+            sku: 'FG-40F',
+            series: 'F',
+            tierOrder: 2,
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 100,
+            threatProtectionMbps: 600,
+            ngfwMbps: 800,
+            ipsMbps: 1000,
+            totalConfigurablePorts: 5,
+            portsDescription: '5x GE RJ45 (1x WAN + 3x Internas + 1x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-60f',
+            name: 'FortiGate 60F',
+            sku: 'FG-60F',
+            series: 'F',
+            tierOrder: 3,
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 150,
+            threatProtectionMbps: 700,
+            ngfwMbps: 1000,
+            ipsMbps: 1400,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x GE RJ45 (2x WAN + 1x DMZ + 5x Internas + 2x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-80f',
+            name: 'FortiGate 80F',
+            sku: 'FG-80F',
+            series: 'F',
+            tierOrder: 4,
+            formFactor: 'Desktop',
+            ramGb: 4,
+            maxUsersByRam: 200,
+            threatProtectionMbps: 900,
+            ngfwMbps: 1000,
+            ipsMbps: 1400,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x Portas (2x RJ45/SFP Shared WAN + 6x Internas + 2x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-50g',
+            name: 'FortiGate 50G',
+            sku: 'FG-50G',
+            series: 'G',
+            tierOrder: 5,
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 100,
+            threatProtectionMbps: 1100,
+            ngfwMbps: 1250,
+            ipsMbps: 2250,
+            totalConfigurablePorts: 5,
+            portsDescription: '5x GE RJ45 (1x WAN + 3x Internas + 1x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-70g',
+            name: 'FortiGate 70G',
+            sku: 'FG-70G',
+            series: 'G',
+            tierOrder: 6,
+            formFactor: 'Desktop',
+            ramGb: 4,
+            maxUsersByRam: 200,
+            threatProtectionMbps: 1300,
+            ngfwMbps: 1500,
+            ipsMbps: 2500,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x GE RJ45 (2x WAN + 6x Internas + 2x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-90g',
+            name: 'FortiGate 90G',
+            sku: 'FG-90G',
+            series: 'G',
+            tierOrder: 7,
+            formFactor: 'Desktop',
+            ramGb: 4,
+            maxUsersByRam: 250,
+            threatProtectionMbps: 2200,
+            ngfwMbps: 2500,
+            ipsMbps: 4500,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x Portas (2x 10GE RJ45/SFP+ Shared WAN + 8x GE Internas)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-120g',
+            name: 'FortiGate 120G',
+            sku: 'FG-120G',
+            series: 'G',
+            tierOrder: 8,
+            formFactor: 'Rack 1RU',
+            ramGb: 8,
+            maxUsersByRam: 500,
+            threatProtectionMbps: 2800,
+            ngfwMbps: 3100,
+            ipsMbps: 5300,
+            totalConfigurablePorts: 28,
+            portsDescription: '28x Portas (16x GE RJ45 + 8x SFP + 4x 10GE SFP+ FortiLink)',
+            maxSiteToSiteTunnels: 2000
+          },
+          {
+            id: 'fg-200g',
+            name: 'FortiGate 200G',
+            sku: 'FG-200G',
+            series: 'G',
+            tierOrder: 9,
+            formFactor: 'Rack 1RU',
+            ramGb: 8,
+            maxUsersByRam: 500,
+            threatProtectionMbps: 6000,
+            ngfwMbps: 7000,
+            ipsMbps: 9000,
+            totalConfigurablePorts: 28,
+            portsDescription: '28x Portas (8x GE + 8x 5GE + 4x SFP + 8x 10GE SFP+)',
+            maxSiteToSiteTunnels: 2000
+          }
+        ]);
+
+        // Factory para criar objeto de adicionais estruturado por unidade
+        function createDefaultAddons() {
+          return {
+            fortiAP: { enabled: false, needConsultant: false, qty: 2, model: '' },
+            fortiSwitch: { enabled: false, needConsultant: false, qty: 1, model: '' },
+            fortiAnalyzer: { enabled: false, volumetry: '' },
+            fortiManager: { enabled: false, volumetry: '' }
+          };
+        }
+
+        // Rascunho atual na Área do Cliente
+        const clientDraft = reactive({
+          id: 'draft-' + Date.now(),
+          companyName: '',
+          contactName: '',
+          contactEmail: '',
+          notes: '',
+          sites: [
+            {
+              id: 'site-1',
+              name: 'Matriz Principal',
+              quantity: 1,
+              q1_vpnSiteToSite: 2,
+              q2_vpnTunnels: 4,
+              q3_mobileVpnUsers: 15,
+              q4_lanPorts: 2,
+              q5_wanPorts: 2,
+              q6_bandwidthValue: 500,
+              q6_bandwidthUnit: 'Mbps',
+              q7_lanDevices: 35,
+              q8_wifiDevices: 20,
+              q10_haMode: 'Não',
+              q11_voipExtensions: 15,
+              q12_securityPlan: 'UTP (Unified Threat Protection)',
+              addons: createDefaultAddons()
+            }
+          ]
+        });
+
+        // Base inicial de QPVs no Painel do Consultor
+        const submissions = ref([
+          {
+            id: 'sub-demo-1',
+            companyName: 'Grupo Varejo Brasil S.A. (Matriz + 8 Lojas)',
+            contactName: 'Roberto Almeida — Head de TI',
+            contactEmail: 'roberto@varejobrasil.com.br',
+            submittedAt: '06/11/2026',
+            sites: [
+              {
+                id: 's-101',
+                name: 'Matriz São Paulo (Datacenter)',
+                quantity: 1,
+                q1_vpnSiteToSite: 8,
+                q2_vpnTunnels: 16,
+                q3_mobileVpnUsers: 40,
+                q4_lanPorts: 6,
+                q5_wanPorts: 2,
+                q6_bandwidthValue: 1.5,
+                q6_bandwidthUnit: 'Gbps',
+                q7_lanDevices: 110,
+                q8_wifiDevices: 50,
+                q10_haMode: 'Sim - Ativo/Passivo',
+                q11_voipExtensions: 40,
+                q12_securityPlan: 'UTP (Unified Threat Protection)',
+                addons: {
+                  fortiAP: { enabled: false, needConsultant: false, qty: 0, model: '' },
+                  fortiSwitch: { enabled: true, needConsultant: false, qty: 4, model: '48 portas PoE (FS-148F-FPOE)' },
+                  fortiAnalyzer: { enabled: true, volumetry: '15 GB/dia — Retenção 12 meses (LGPD)' },
+                  fortiManager: { enabled: true, volumetry: 'Gerência de 10 Firewalls + 12 Switches' }
+                }
+              },
+              {
+                id: 's-102',
+                name: 'Lojas Padrão Shopping',
+                quantity: 8,
+                q1_vpnSiteToSite: 1,
+                q2_vpnTunnels: 2,
+                q3_mobileVpnUsers: 0,
+                q4_lanPorts: 2,
+                q5_wanPorts: 1,
+                q6_bandwidthValue: 350,
+                q6_bandwidthUnit: 'Mbps',
+                q7_lanDevices: 15,
+                q8_wifiDevices: 12,
+                q10_haMode: 'Não',
+                q11_voipExtensions: 6,
+                q12_securityPlan: 'FortiCare',
+                addons: {
+                  fortiAP: { enabled: true, needConsultant: true, qty: 1, model: '' },
+                  fortiSwitch: { enabled: false, needConsultant: false, qty: 1, model: '' },
+                  fortiAnalyzer: { enabled: false, volumetry: '' },
+                  fortiManager: { enabled: false, volumetry: '' }
+                }
+              }
+            ]
+          },
+          {
+            id: 'sub-demo-2',
+            companyName: 'Capital Asset Management (Sede Única)',
+            contactName: 'Dra. Fernanda Costa — CTO',
+            contactEmail: 'infra@capitalasset.com.br',
+            submittedAt: '06/11/2026',
+            sites: [
+              {
+                id: 's-201',
+                name: 'Sede Faria Lima',
+                quantity: 1,
+                q1_vpnSiteToSite: 2,
+                q2_vpnTunnels: 4,
+                q3_mobileVpnUsers: 20,
+                q4_lanPorts: 4,
+                q5_wanPorts: 2,
+                q6_bandwidthValue: 800,
+                q6_bandwidthUnit: 'Mbps',
+                q7_lanDevices: 55,
+                q8_wifiDevices: 45,
+                q10_haMode: 'Sim - Ativo/Passivo',
+                q11_voipExtensions: 25,
+                q12_securityPlan: 'UTP (Unified Threat Protection)',
+                addons: {
+                  fortiAP: { enabled: true, needConsultant: false, qty: 6, model: 'FortiAP 231G' },
+                  fortiSwitch: { enabled: true, needConsultant: true, qty: 1, model: '' },
+                  fortiAnalyzer: { enabled: true, volumetry: '8 GB/dia por 24 meses' },
+                  fortiManager: { enabled: false, volumetry: '' }
+                }
+              }
+            ]
+          }
+        ]);
+
+        // Normaliza objetos antigos caso existam no LocalStorage
+        function normalizeSubmission(sub) {
+          if (!sub || !Array.isArray(sub.sites)) return sub;
+          sub.sites.forEach(s => {
+            if (!s.q12_securityPlan) {
+              s.q12_securityPlan = sub.q12_securityPlan || 'UTP (Unified Threat Protection)';
+            }
+            if (!s.addons) {
+              s.addons = createDefaultAddons();
+            }
+          });
+          return sub;
+        }
+
+        onMounted(() => {
+          try {
+            const savedTheme = localStorage.getItem('mundivox_theme_dark');
+            if (savedTheme === 'true') darkMode.value = true;
+
+            const saved = localStorage.getItem('mundivox_qpv_submissions_v3');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                submissions.value = parsed.map(normalizeSubmission);
+                selectedSubmissionId.value = submissions.value[0].id;
+              }
+            }
+          } catch (e) {
+            console.warn('LocalStorage indisponível:', e);
+          }
+        });
+
+        function toggleDarkMode() {
+          darkMode.value = !darkMode.value;
+          try {
+            localStorage.setItem('mundivox_theme_dark', String(darkMode.value));
+          } catch (e) {}
+        }
+
+        function saveSubmissionsToStorage() {
+          try {
+            localStorage.setItem('mundivox_qpv_submissions_v3', JSON.stringify(submissions.value));
+          } catch (e) {
+            console.warn('Erro ao salvar no LocalStorage:', e);
+          }
+        }
+
+        const currentClientSite = computed(() => {
+          return clientDraft.sites[activeClientSiteIndex.value] || clientDraft.sites[0];
+        });
+
+        const clientProgressPercent = computed(() => {
+          if (clientStep.value === 4) return 100;
+          if (clientStep.value === 3) return 90;
+          let pts = 20;
+          if (clientDraft.companyName.trim().length > 2) pts += 25;
+          if (clientStep.value >= 2) pts += 30;
+          return Math.min(85, pts);
+        });
+
+        function siteTotalUsers(site) {
+          if (!site) return 0;
+          return (Number(site.q3_mobileVpnUsers) || 0) +
+                 (Number(site.q7_lanDevices) || 0) +
+                 (Number(site.q8_wifiDevices) || 0) +
+                 (Number(site.q11_voipExtensions) || 0);
+        }
+
+        function formatSiteAddonsSummary(site) {
+          if (!site || !site.addons) return 'Sem serviços adicionais';
+          const parts = [];
+          if (site.addons.fortiAP?.enabled) {
+            parts.push(site.addons.fortiAP.needConsultant ? 'FortiAP (Apoio Consultor)' : `FortiAP (${site.addons.fortiAP.qty}x ${site.addons.fortiAP.model || 'Padrão'})`);
+          }
+          if (site.addons.fortiSwitch?.enabled) {
+            parts.push(site.addons.fortiSwitch.needConsultant ? 'FortiSwitch (Apoio Consultor)' : `FortiSwitch (${site.addons.fortiSwitch.qty}x ${site.addons.fortiSwitch.model || 'Padrão'})`);
+          }
+          if (site.addons.fortiAnalyzer?.enabled) {
+            parts.push(`FortiAnalyzer (${site.addons.fortiAnalyzer.volumetry || 'Volumetria a definir'})`);
+          }
+          if (site.addons.fortiManager?.enabled) {
+            parts.push(`FortiManager (${site.addons.fortiManager.volumetry || 'Volumetria a definir'})`);
+          }
+          return parts.length > 0 ? parts.join(' | ') : 'Não desejo serviços adicionais';
+        }
+
+        function enterClientMode() {
+          appMode.value = 'client';
+          if (clientStep.value === 4) clientStep.value = 1;
+        }
+
+        function addClientSite(mode) {
+          const idx = clientDraft.sites.length + 1;
+          clientDraft.sites.push({
+            id: 'site-' + Date.now() + '-' + idx,
+            name: mode === 'batch' ? `Grupo de Filiais Padrão #${idx}` : `Filial 0${idx - 1}`,
+            quantity: mode === 'batch' ? 5 : 1,
+            q1_vpnSiteToSite: 1,
+            q2_vpnTunnels: 2,
+            q3_mobileVpnUsers: 0,
+            q4_lanPorts: 2,
+            q5_wanPorts: 1,
+            q6_bandwidthValue: 300,
+            q6_bandwidthUnit: 'Mbps',
+            q7_lanDevices: 15,
+            q8_wifiDevices: 10,
+            q10_haMode: 'Não',
+            q11_voipExtensions: 5,
+            q12_securityPlan: 'UTP (Unified Threat Protection)',
+            addons: createDefaultAddons()
+          });
+          activeClientSiteIndex.value = clientDraft.sites.length - 1;
+          showToast(mode === 'batch' ? 'Grupo de filiais adicionado.' : 'Nova filial adicionada.');
+        }
+
+        function removeClientSite(index) {
+          if (clientDraft.sites.length <= 1) return;
+          clientDraft.sites.splice(index, 1);
+          activeClientSiteIndex.value = Math.max(0, index - 1);
+        }
+
+        function finishClientJourney() {
+          const newSub = JSON.parse(JSON.stringify(clientDraft));
+          newSub.id = 'sub-' + Date.now();
+          if (!newSub.companyName.trim()) {
+            newSub.companyName = 'Cliente Corporativo #' + (submissions.value.length + 1);
+          }
+          newSub.submittedAt = new Date().toLocaleDateString('pt-BR');
+          submissions.value.unshift(newSub);
+          selectedSubmissionId.value = newSub.id;
+          selectedSiteIndex.value = 0;
+          saveSubmissionsToStorage();
+          clientStep.value = 4;
+          showToast('QPV registrado com sucesso na Engenharia Mundivox.');
+        }
+
+        function startNewClientDraft() {
+          clientDraft.companyName = '';
+          clientDraft.contactName = '';
+          clientDraft.contactEmail = '';
+          clientDraft.notes = '';
+          clientStep.value = 1;
+          activeClientSiteIndex.value = 0;
+        }
+
+        function openConsultantGate() {
+          if (isConsultantAuthenticated.value) {
+            appMode.value = 'consultant';
+          } else {
+            pinInput.value = '';
+            pinError.value = false;
+            showPinModal.value = true;
+          }
+        }
+
+        function verifyConsultantPin() {
+          const clean = pinInput.value.trim().toLowerCase();
+          if (clean === 'mundivox' || clean === '1234' || clean === 'admin') {
+            isConsultantAuthenticated.value = true;
+            showPinModal.value = false;
+            appMode.value = 'consultant';
+            showToast('Acesso de Consultor autenticado.');
+          } else {
+            pinError.value = true;
+          }
+        }
+
+        function openConsultantDirectWithLastSubmission() {
+          isConsultantAuthenticated.value = true;
+          appMode.value = 'consultant';
+          consultantTab.value = 'analyzer';
+        }
+
+        // MOTOR DE DIMENSIONAMENTO DO CONSULTOR (SEM PERCENTUAL EXTRA; SOMA DIRETA COM DISCLAIMER)
+        const currentSubmission = computed(() => {
+          return submissions.value.find(s => s.id === selectedSubmissionId.value) || submissions.value[0];
+        });
+
+        const currentConsultantSite = computed(() => {
+          if (!currentSubmission.value) return null;
+          return currentSubmission.value.sites[selectedSiteIndex.value] || currentSubmission.value.sites[0];
+        });
+
+        function evaluateSingleSite(site) {
+          const q3 = Number(site.q3_mobileVpnUsers) || 0;
+          const q7 = Number(site.q7_lanDevices) || 0;
+          const q8 = Number(site.q8_wifiDevices) || 0;
+          const q11 = Number(site.q11_voipExtensions) || 0;
+          const baseUsers = q3 + q7 + q8 + q11;
+          const totalUsersWithGrowth = baseUsers;
+
+          const lanPorts = Number(site.q4_lanPorts) || 0;
+          const wanPorts = Number(site.q5_wanPorts) || 0;
+          const totalRequiredPorts = lanPorts + wanPorts;
+
+          const bwVal = Number(site.q6_bandwidthValue) || 0;
+          const requiredBandwidthMbps = site.q6_bandwidthUnit === 'Gbps' ? bwVal * 1000 : bwVal;
+
+          const requiredTunnels = Math.max(Number(site.q1_vpnSiteToSite) || 0, Number(site.q2_vpnTunnels) || 0);
+
+          const evaluatedBoxes = firewallModels.map(box => {
+            const failReasons = [];
+
+            if (box.threatProtectionMbps < requiredBandwidthMbps) {
+              failReasons.push(`Banda Threat Protection insuficiente: suporta ${formatMbps(box.threatProtectionMbps)}, exige ${formatMbps(requiredBandwidthMbps)}`);
+            }
+            if (totalUsersWithGrowth > box.maxUsersByRam) {
+              failReasons.push(`Limite de Usuários/RAM excedido: suporta ${box.maxUsersByRam} (${box.ramGb}GB RAM), exige ${totalUsersWithGrowth}`);
+            }
+            if (box.totalConfigurablePorts < totalRequiredPorts) {
+              failReasons.push(`Portas insuficientes: possui ${box.totalConfigurablePorts} portas, exige ${totalRequiredPorts} (${lanPorts} LAN + ${wanPorts} WAN)`);
+            }
+            if (requiredTunnels > box.maxSiteToSiteTunnels) {
+              failReasons.push(`Túneis VPN insuficientes: suporta ${box.maxSiteToSiteTunnels}, exige ${requiredTunnels}`);
+            }
+
+            return {
+              ...box,
+              failReasons,
+              passedAll: failReasons.length === 0
+            };
+          });
+
+          const validBoxes = evaluatedBoxes.filter(b => b.passedAll);
+          validBoxes.sort((a, b) => {
+            if (a.threatProtectionMbps !== b.threatProtectionMbps) {
+              return a.threatProtectionMbps - b.threatProtectionMbps;
+            }
+            return a.tierOrder - b.tierOrder;
+          });
+
+          const recommendedBox = validBoxes.length > 0 ? validBoxes[0] : null;
+          const appliancesPerSite = site.q10_haMode === 'Não' ? 1 : 2;
+          const siteQty = Math.max(1, Number(site.quantity) || 1);
+          const totalAppliancesForThisSiteGroup = appliancesPerSite * siteQty;
+
+          return {
+            site,
+            baseUsers,
+            totalUsersWithGrowth,
+            totalRequiredPorts,
+            requiredBandwidthMbps,
+            evaluatedBoxes,
+            recommendedBox,
+            appliancesPerSite,
+            totalAppliancesForThisSiteGroup
+          };
+        }
+
+        const evaluatedSubmissionSites = computed(() => {
+          if (!currentSubmission.value) return [];
+          return currentSubmission.value.sites.map(site => evaluateSingleSite(site));
+        });
+
+        const activeSiteEvaluation = computed(() => {
+          return evaluatedSubmissionSites.value[selectedSiteIndex.value] || evaluatedSubmissionSites.value[0] || null;
+        });
+
+        const projectBomSummary = computed(() => {
+          const map = {};
+          evaluatedSubmissionSites.value.forEach(item => {
+            if (item.recommendedBox) {
+              const sku = item.recommendedBox.sku;
+              map[sku] = (map[sku] || 0) + item.totalAppliancesForThisSiteGroup;
+            }
+          });
+          return map;
+        });
+
+        function addSiteToCurrentSubmission() {
+          if (!currentSubmission.value) return;
+          const idx = currentSubmission.value.sites.length + 1;
+          currentSubmission.value.sites.push({
+            id: 'site-c-' + Date.now(),
+            name: `Nova Filial 0${idx}`,
+            quantity: 1,
+            q1_vpnSiteToSite: 1,
+            q2_vpnTunnels: 2,
+            q3_mobileVpnUsers: 0,
+            q4_lanPorts: 2,
+            q5_wanPorts: 1,
+            q6_bandwidthValue: 400,
+            q6_bandwidthUnit: 'Mbps',
+            q7_lanDevices: 15,
+            q8_wifiDevices: 10,
+            q10_haMode: 'Não',
+            q11_voipExtensions: 5,
+            q12_securityPlan: 'UTP (Unified Threat Protection)',
+            addons: createDefaultAddons()
+          });
+          selectedSiteIndex.value = currentSubmission.value.sites.length - 1;
+          saveSubmissionsToStorage();
+        }
+
+        function createNewSubmissionInConsultant() {
+          const newSub = {
+            id: 'sub-' + Date.now(),
+            companyName: 'Novo Projeto Corporativo #' + (submissions.value.length + 1),
+            contactName: 'Consultor Mundivox',
+            contactEmail: 'prevenda@mundivox.com.br',
+            submittedAt: new Date().toLocaleDateString('pt-BR'),
+            sites: [
+              {
+                id: 's-new-1',
+                name: 'Matriz Principal',
+                quantity: 1,
+                q1_vpnSiteToSite: 2,
+                q2_vpnTunnels: 4,
+                q3_mobileVpnUsers: 10,
+                q4_lanPorts: 3,
+                q5_wanPorts: 2,
+                q6_bandwidthValue: 600,
+                q6_bandwidthUnit: 'Mbps',
+                q7_lanDevices: 30,
+                q8_wifiDevices: 20,
+                q10_haMode: 'Não',
+                q11_voipExtensions: 10,
+                q12_securityPlan: 'UTP (Unified Threat Protection)',
+                addons: createDefaultAddons()
+              }
+            ]
+          };
+          submissions.value.unshift(newSub);
+          selectedSubmissionId.value = newSub.id;
+          selectedSiteIndex.value = 0;
+          saveSubmissionsToStorage();
+          showToast('Novo projeto criado no painel do consultor.');
+        }
+
+        function exportSingleQpvJson(subObj) {
+          const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(subObj, null, 2));
+          const a = document.createElement('a');
+          a.setAttribute('href', dataStr);
+          const safeName = (subObj.companyName || 'qpv-mundivox').toLowerCase().replace(/[^a-z0-9]/g, '-');
+          a.setAttribute('download', `qpv-${safeName}.json`);
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          showToast('Arquivo QPV (.json) exportado.');
+        }
+
+        function importQpvJson(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const imported = normalizeSubmission(JSON.parse(e.target.result));
+              if (imported && Array.isArray(imported.sites)) {
+                imported.id = 'sub-imp-' + Date.now();
+                submissions.value.unshift(imported);
+                selectedSubmissionId.value = imported.id;
+                selectedSiteIndex.value = 0;
+                saveSubmissionsToStorage();
+                showToast('QPV importado com sucesso.');
+              }
+            } catch (err) {
+              showToast('Erro ao ler o arquivo JSON.');
+            }
+          };
+          reader.readAsText(file);
+        }
+
+        function totalMappedUnitsCount(sub) {
+          if (!sub || !Array.isArray(sub.sites)) return 0;
+          return sub.sites.reduce((acc, s) => acc + (Number(s.quantity) || 1), 0);
+        }
+
+        function formatMbps(mbps) {
+          if (mbps >= 1000) {
+            return (mbps / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' Gbps';
+          }
+          return mbps + ' Mbps';
+        }
+
+        function printConsultantReport() {
+          window.print();
+        }
+
+        function showToast(msg) {
+          toastMessage.value = msg;
+          setTimeout(() => {
+            toastMessage.value = '';
+          }, 3200);
+        }
+
+        return {
+          darkMode,
+          toggleDarkMode,
+          appMode,
+          showPinModal,
+          pinInput,
+          pinError,
+          isConsultantAuthenticated,
+          toastMessage,
+          activeServiceInfoKey,
+          serviceCatalog,
+          clientStep,
+          activeClientSiteIndex,
+          consultantTab,
+          selectedSubmissionId,
+          selectedSiteIndex,
+          firewallModels,
+          clientDraft,
+          submissions,
+          currentClientSite,
+          clientProgressPercent,
+          siteTotalUsers,
+          formatSiteAddonsSummary,
+          enterClientMode,
+          addClientSite,
+          removeClientSite,
+          finishClientJourney,
+          startNewClientDraft,
+          openConsultantGate,
+          verifyConsultantPin,
+          openConsultantDirectWithLastSubmission,
+          currentSubmission,
+          currentConsultantSite,
+          evaluatedSubmissionSites,
+          activeSiteEvaluation,
+          projectBomSummary,
+          addSiteToCurrentSubmission,
+          createNewSubmissionInConsultant,
+          exportSingleQpvJson,
+          importQpvJson,
+          totalMappedUnitsCount,
+          formatMbps,
+          printConsultantReport
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

@@ -1,0 +1,2111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MUNDIVOX | Portal QPV Gamificado & Dimensionador FortiGate</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue.js 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            fortired: '#EE3124',
+            fortidark: '#0F172A',
+            mundiblue: '#0284C7',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #F1F5F9;
+    }
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+    @keyframes pulse-soft {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+    .animate-pulse-soft {
+      animation: pulse-soft 2.5s infinite ease-in-out;
+    }
+    @media print {
+      body {
+        background-color: #FFFFFF !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-break-avoid {
+        page-break-inside: avoid;
+      }
+      .shadow-lg, .shadow-xl, .shadow-2xl, .shadow-md, .shadow-sm {
+        box-shadow: none !important;
+      }
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-sky-600 selection:text-white">
+  <div id="app" class="min-h-screen flex flex-col">
+
+    <!-- ========================================================================= -->
+    <!-- TOP NAVBAR GLOBAL (PERMITE TROCAR ENTRE PORTAL DO CLIENTE E CONSULTOR)    -->
+    <!-- ========================================================================= -->
+    <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur text-white border-b-4 border-fortired shadow-lg no-print">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap justify-between items-center gap-3">
+        <!-- Brand Logo -->
+        <div class="flex items-center space-x-3 cursor-pointer" @click="appMode = 'landing'">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-blue-700 flex items-center justify-center shadow-md font-black text-xl tracking-tighter">
+            MV
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-black text-lg tracking-wider text-white">MUNDIVOX</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-fortired text-white font-bold uppercase tracking-wider">Fortinet Partner</span>
+            </div>
+            <p class="text-[11px] text-slate-400">Portal Interativo QPV & Engenharia de Pré-Venda</p>
+          </div>
+        </div>
+
+        <!-- Mode Switcher (Cliente vs Consultor) -->
+        <div class="flex items-center gap-2">
+          <button 
+            @click="appMode = 'landing'"
+            :class="appMode === 'landing' ? 'bg-slate-700 text-white' : 'bg-slate-800/80 text-slate-400 hover:text-white'"
+            class="px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+            <i class="ph-bold ph-SquaresFour text-sm"></i>
+            <span class="hidden sm:inline">Início</span>
+          </button>
+
+          <button 
+            @click="enterClientMode"
+            :class="appMode === 'client' ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md ring-2 ring-sky-400/40' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition">
+            <i class="ph-fill ph-game-controller text-base"></i>
+            <span>Área do Cliente (Responder QPV)</span>
+          </button>
+
+          <button 
+            @click="openConsultantGate"
+            :class="appMode === 'consultant' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md ring-2 ring-emerald-400/40' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition">
+            <i class="ph-fill ph-lock-key text-base"></i>
+            <span>Área do Consultor</span>
+            <span class="ml-1 px-1.5 py-0.2 rounded-full bg-slate-950/60 text-[10px] font-extrabold text-emerald-300">
+              {{ submissions.length }}
+            </span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- TOAST NOTIFICATION -->
+    <div v-if="toastMessage" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-3 transition-all duration-300 no-print">
+      <i class="ph-fill ph-check-circle text-emerald-400 text-xl"></i>
+      <span class="text-sm font-medium">{{ toastMessage }}</span>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL DE LOGIN DO CONSULTOR (PIN / SENHA)                                 -->
+    <!-- ========================================================================= -->
+    <div v-if="showPinModal" class="fixed inset-0 z-50 bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4 no-print">
+      <div class="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-md w-full overflow-hidden">
+        <div class="bg-slate-900 p-6 text-white flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+              <i class="ph-duotone ph-shield-star text-2xl"></i>
+            </div>
+            <div>
+              <h3 class="font-extrabold text-base">Acesso Restrito — Consultor</h3>
+              <p class="text-xs text-slate-400">Engenharia de Pré-Venda Mundivox</p>
+            </div>
+          </div>
+          <button @click="showPinModal = false" class="text-slate-400 hover:text-white">
+            <i class="ph-bold ph-x text-lg"></i>
+          </button>
+        </div>
+
+        <form @submit.prevent="verifyConsultantPin" class="p-6 space-y-4">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-600 mb-1.5">Credencial / PIN de Engenharia</label>
+            <input 
+              v-model="pinInput" 
+              type="password" 
+              autofocus
+              placeholder="Digite a senha (ex: mundivox ou 1234)" 
+              class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none" />
+            <p v-if="pinError" class="text-xs text-rose-600 font-semibold mt-1.5 flex items-center gap-1">
+              <i class="ph-fill ph-warning-circle"></i> Senha incorreta. Tente "mundivox" ou "1234".
+            </p>
+          </div>
+
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500 flex items-center justify-between">
+            <span><i class="ph-fill ph-info text-sky-600 mr-1"></i> Dica para demonstração:</span>
+            <button type="button" @click="pinInput = 'mundivox'; verifyConsultantPin()" class="text-sky-700 font-bold underline hover:text-sky-900">
+              Entrar direto (mundivox)
+            </button>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" @click="showPinModal = false" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200">
+              Cancelar
+            </button>
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-2 shadow-md">
+              <i class="ph-bold ph-sign-in"></i>
+              <span>Acessar Painel de Dimensionamento</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TELA 0: LANDING PAGE / ESCOLHA DE PERFIL DE ACESSO                        -->
+    <!-- ========================================================================= -->
+    <main v-if="appMode === 'landing'" class="flex-grow flex items-center justify-center p-4 sm:p-8 no-print">
+      <div class="max-w-5xl w-full space-y-8">
+        
+        <div class="text-center space-y-3 max-w-2xl mx-auto">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-sky-100 text-sky-800">
+            <i class="ph-fill ph-sparkle"></i> Novo QPV Digital Multi-Filial
+          </span>
+          <h1 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
+            Bem-vindo ao Portal de Dimensionamento <span class="text-fortired">FortiGate</span>
+          </h1>
+          <p class="text-sm text-slate-600 leading-relaxed">
+            Escolha como deseja acessar a plataforma: o <strong>Ambiente Gamificado do Cliente</strong> traduz termos técnicos em uma jornada visual super leve, enquanto a <strong>Área do Consultor</strong> entrega o cálculo automático das caixas, RAM, portas e justificativas.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- CARD 1: PORTAL DO CLIENTE (GAMIFICADO) -->
+          <div @click="enterClientMode" class="group bg-white rounded-3xl p-8 shadow-xl border-2 border-transparent hover:border-sky-500 cursor-pointer transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-sky-500/10 group-hover:bg-sky-500/20 transition"></div>
+            
+            <div class="space-y-4 relative">
+              <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white flex items-center justify-center shadow-lg">
+                <i class="ph-duotone ph-rocket-launch text-3xl"></i>
+              </div>
+              <div class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2.5 py-1 rounded-md">
+                Para Clientes Mundivox • Experiência Gamificada
+              </div>
+              <h2 class="text-2xl font-black text-slate-900">Sou Cliente (Responder QPV)</h2>
+              <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                Mapeie sua Matriz e suas Filiais em menos de 3 minutos! Sem termos técnicos difíceis, com barras de progresso, agrupamento inteligente de lojas e dicas visuais.
+              </p>
+
+              <ul class="space-y-2 text-xs text-slate-600 pt-2">
+                <li class="flex items-center gap-2">
+                  <i class="ph-fill ph-check-circle text-sky-500 text-base"></i>
+                  <span>Cadastre 1 unidade ou dezenas de filiais de uma só vez</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <i class="ph-fill ph-check-circle text-sky-500 text-base"></i>
+                  <span>Linguagem simples (sem precisar calcular portas ou túneis)</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <i class="ph-fill ph-check-circle text-sky-500 text-base"></i>
+                  <span>Desbloqueie conquistas ao completar o perfil da sua rede</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between">
+              <span class="text-xs font-bold text-sky-600 group-hover:translate-x-1 transition flex items-center gap-1.5">
+                Iniciar Jornada Interativa <i class="ph-bold ph-arrow-right"></i>
+              </span>
+              <span class="text-[11px] text-slate-400 font-medium">Tempo médio: 2 min</span>
+            </div>
+          </div>
+
+          <!-- CARD 2: PORTAL DO CONSULTOR (ENGENHARIA) -->
+          <div @click="openConsultantGate" class="group bg-slate-900 text-white rounded-3xl p-8 shadow-xl border-2 border-slate-800 hover:border-emerald-500 cursor-pointer transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+            <div class="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-emerald-500/10 group-hover:bg-emerald-500/20 transition"></div>
+
+            <div class="space-y-4 relative">
+              <div class="flex items-center justify-between">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg">
+                  <i class="ph-duotone ph-cpu text-3xl"></i>
+                </div>
+                <span class="px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-extrabold">
+                  {{ submissions.length }} QPVs na Base
+                </span>
+              </div>
+              <div class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-md">
+                Acesso Restrito • Pré-Venda & Engenharia
+              </div>
+              <h2 class="text-2xl font-black text-white">Sou Consultor Mundivox</h2>
+              <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                Visualize os QPVs preenchidos pelos clientes, simule alterações em tempo real com a barra lateral fixa e veja a caixa ideal dimensionada para cada filial.
+              </p>
+
+              <ul class="space-y-2 text-xs text-slate-300 pt-2">
+                <li class="flex items-center gap-2">
+                  <i class="ph-fill ph-check-circle text-emerald-400 text-base"></i>
+                  <span>Caixa dimensionada por RAM, Threat Protection e Portas</span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <i class="ph-fill ph-check-circle text-emerald-400 text-base"></i>
+                  <span>Explicação do <strong>Porquê foi escolhida</strong> e <strong>Por que as outras 8 não foram</strong></span>
+                </li>
+                <li class="flex items-center gap-2">
+                  <i class="ph-fill ph-check-circle text-emerald-400 text-base"></i>
+                  <span>Relatório executivo completo de Matriz + Filiais pronto para PDF</span>
+                </li>
+              </ul>
+            </div>
+
+            <div class="mt-8 pt-4 border-t border-slate-800 flex items-center justify-between">
+              <span class="text-xs font-bold text-emerald-400 group-hover:translate-x-1 transition flex items-center gap-1.5">
+                Acessar Painel do Consultor <i class="ph-bold ph-lock-key-open"></i>
+              </span>
+              <span class="text-[11px] text-slate-400 font-mono">PIN: mundivox</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- TELA 1: ÁREA DO CLIENTE — JORNADA GAMIFICADA MULTI-FILIAL                 -->
+    <!-- ========================================================================= -->
+    <main v-if="appMode === 'client'" class="flex-grow max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6 no-print">
+      
+      <!-- TOP GAMIFICATION HUD (BARRA DE MISSÃO E CONQUISTAS) -->
+      <div class="bg-white rounded-3xl p-5 sm:p-6 shadow-md border border-slate-200">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-md font-black text-xl">
+              <i class="ph-fill ph-trophy"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-sky-600">Jornada de Mapeamento Mundivox</span>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold">
+                  {{ clientProgressPercent }}% Concluído
+                </span>
+              </div>
+              <h2 class="text-lg font-black text-slate-900">{{ clientLevelTitle }}</h2>
+            </div>
+          </div>
+
+          <!-- Badges / Conquistas Desbloqueadas -->
+          <div class="flex flex-wrap gap-2">
+            <div v-for="badge in gamificationBadges" :key="badge.id"
+              :class="badge.unlocked ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-sm' : 'bg-slate-100 border-slate-200 text-slate-400 opacity-60'"
+              class="px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition-all duration-300">
+              <i :class="[badge.icon, badge.unlocked ? 'text-amber-500' : 'text-slate-400']" class="text-base"></i>
+              <span>{{ badge.label }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Barra de Progresso Animada -->
+        <div class="w-full bg-slate-100 h-3 rounded-full overflow-hidden p-0.5 border border-slate-200">
+          <div class="bg-gradient-to-r from-sky-500 via-blue-600 to-emerald-500 h-full rounded-full transition-all duration-500"
+               :style="{ width: clientProgressPercent + '%' }"></div>
+        </div>
+
+        <!-- Stepper de Navegação da Jornada -->
+        <div class="grid grid-cols-4 gap-2 pt-4 mt-4 border-t border-slate-100 text-xs">
+          <button @click="clientStep = 1" :class="clientStep === 1 ? 'bg-sky-600 text-white font-bold shadow-sm' : (clientStep > 1 ? 'bg-emerald-50 text-emerald-800 font-semibold' : 'bg-slate-50 text-slate-500')" class="p-2.5 rounded-xl flex items-center justify-center gap-2 transition">
+            <i class="ph-bold ph-buildings"></i>
+            <span class="hidden sm:inline">1. Sua Empresa</span>
+            <span class="sm:hidden">1. Empresa</span>
+          </button>
+          <button @click="clientStep = 2" :class="clientStep === 2 ? 'bg-sky-600 text-white font-bold shadow-sm' : (clientStep > 2 ? 'bg-emerald-50 text-emerald-800 font-semibold' : 'bg-slate-50 text-slate-500')" class="p-2.5 rounded-xl flex items-center justify-center gap-2 transition">
+            <i class="ph-bold ph-shield-check"></i>
+            <span class="hidden sm:inline">2. Segurança & Futuro</span>
+            <span class="sm:hidden">2. Proteção</span>
+          </button>
+          <button @click="clientStep = 3" :class="clientStep === 3 ? 'bg-sky-600 text-white font-bold shadow-sm' : (clientStep > 3 ? 'bg-emerald-50 text-emerald-800 font-semibold' : 'bg-slate-50 text-slate-500')" class="p-2.5 rounded-xl flex items-center justify-center gap-2 transition">
+            <i class="ph-bold ph-map-pin-line"></i>
+            <span class="hidden sm:inline">3. Matriz & Filiais ({{ clientDraft.sites.length }})</span>
+            <span class="sm:hidden">3. Unidades</span>
+          </button>
+          <button @click="clientStep = 4" :class="clientStep === 4 ? 'bg-emerald-600 text-white font-bold shadow-sm' : 'bg-slate-50 text-slate-500'" class="p-2.5 rounded-xl flex items-center justify-center gap-2 transition">
+            <i class="ph-bold ph-paper-plane-tilt"></i>
+            <span class="hidden sm:inline">4. Concluir Missão</span>
+            <span class="sm:hidden">4. Enviar</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- PASSO 1 DO CLIENTE: BOAS-VINDAS & DADOS DA EMPRESA        -->
+      <!-- ========================================================= -->
+      <div v-if="clientStep === 1" class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <span class="text-xs font-extrabold uppercase tracking-wider text-sky-600">Etapa 1 de 4 • Ponto de Partida</span>
+            <h3 class="text-2xl font-black text-slate-900 mt-1">Quem está embarcando nessa missão?</h3>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">
+              Não se preocupe com números exatos agora. Se não souber algum detalhe, uma estimativa próxima já ajuda nossa engenharia!
+            </p>
+          </div>
+          <div class="hidden sm:flex w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 items-center justify-center shrink-0">
+            <i class="ph-duotone ph-hand-waving text-3xl"></i>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-700 mb-1.5">Nome da sua Empresa *</label>
+            <input v-model="clientDraft.companyName" type="text" placeholder="Ex: Rede Supermercados Estrela" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold focus:ring-2 focus:ring-sky-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-700 mb-1.5">Seu Nome / Cargo *</label>
+            <input v-model="clientDraft.contactName" type="text" placeholder="Ex: Carlos Silva (Gestor de TI)" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold focus:ring-2 focus:ring-sky-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-700 mb-1.5">E-mail ou WhatsApp de Contato</label>
+            <input v-model="clientDraft.contactEmail" type="text" placeholder="Ex: carlos@empresa.com.br / (11) 99999-0000" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold focus:ring-2 focus:ring-sky-500 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-700 mb-1.5">Observações Gerais do Projeto (Opcional)</label>
+            <input v-model="clientDraft.notes" type="text" placeholder="Ex: Queremos interligar as lojas com a matriz" class="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm font-semibold focus:ring-2 focus:ring-sky-500 outline-none" />
+          </div>
+        </div>
+
+        <!-- Declaração Amigável -->
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-start gap-3">
+          <i class="ph-fill ph-info text-sky-600 text-xl mt-0.5"></i>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            <strong>Transparência Mundivox:</strong> As informações preenchidas servem como base oficial para desenharmos a solução na medida certa para sua rede, sem superdimensionar nem deixar faltar capacidade.
+          </p>
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <button @click="clientStep = 2" class="px-6 py-3.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-sm flex items-center gap-2 shadow-lg transition">
+            <span>Avançar para Diretrizes da Rede</span>
+            <i class="ph-bold ph-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- PASSO 2 DO CLIENTE: DIRETRIZES GLOBAIS (Q9, Q12, Q1/Q2)   -->
+      <!-- ========================================================= -->
+      <div v-if="clientStep === 2" class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-8">
+        <div>
+          <span class="text-xs font-extrabold uppercase tracking-wider text-sky-600">Etapa 2 de 4 • Visão Estratégica (Responde 1 única vez)</span>
+          <h3 class="text-2xl font-black text-slate-900 mt-1">Como sua empresa vai crescer e se proteger?</h3>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">
+            Essas 3 escolhas valem como regra geral para toda a empresa, poupando seu tempo!
+          </p>
+        </div>
+
+        <!-- 1. Crescimento Esperado (Q9) -->
+        <div class="space-y-3">
+          <label class="block text-sm font-extrabold text-slate-900">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs mr-1.5">A</span>
+            Qual sua expectativa de crescimento da equipe/dispositivos nos próximos 1 a 3 anos? <span class="text-xs font-normal text-slate-500">(Questão 9 do QPV)</span>
+          </label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div v-for="opt in [
+              { val: 0, title: 'Estável (0%)', desc: 'Sem aumento previsto', icon: 'ph-equals' },
+              { val: 15, title: 'Moderado (+15%)', desc: 'Crescimento orgânico', icon: 'ph-trend-up' },
+              { val: 30, title: 'Expansão (+30%)', desc: 'Novas contratações', icon: 'ph-rocket' },
+              { val: 50, title: 'Acelerado (+50%)', desc: 'Forte expansão', icon: 'ph-fire' }
+            ]" :key="opt.val"
+              @click="clientDraft.q9_growthPercent = opt.val"
+              :class="clientDraft.q9_growthPercent === opt.val ? 'border-2 border-sky-600 bg-sky-50/70 shadow-sm' : 'border border-slate-200 hover:bg-slate-50'"
+              class="p-4 rounded-2xl cursor-pointer transition text-center space-y-1">
+              <i :class="opt.icon" class="ph-duotone text-2xl text-sky-600 mx-auto"></i>
+              <div class="font-extrabold text-sm text-slate-900">{{ opt.title }}</div>
+              <div class="text-[11px] text-slate-500">{{ opt.desc }}</div>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 pt-1">
+            <span class="text-xs text-slate-500">Ou digite um percentual específico:</span>
+            <input v-model.number="clientDraft.q9_growthPercent" type="number" min="0" max="300" class="w-24 rounded-xl border border-slate-300 px-3 py-1.5 text-xs font-bold text-center" />
+            <span class="text-xs font-bold text-slate-700">%</span>
+          </div>
+        </div>
+
+        <!-- 2. Nível de Proteção Desejado (Q12 - Apenas UTP ou FortiCare) -->
+        <div class="space-y-3 pt-4 border-t border-slate-100">
+          <label class="block text-sm font-extrabold text-slate-900">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs mr-1.5">B</span>
+            Qual nível de blindagem e segurança você deseja nos equipamentos? <span class="text-xs font-normal text-slate-500">(Questão 12 do QPV)</span>
+          </label>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div 
+              @click="clientDraft.q12_securityPlan = 'UTP (Unified Threat Protection)'"
+              :class="clientDraft.q12_securityPlan === 'UTP (Unified Threat Protection)' ? 'border-2 border-fortired bg-rose-50/40 shadow-md' : 'border border-slate-200 hover:bg-slate-50'"
+              class="p-5 rounded-2xl cursor-pointer transition space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-black text-base text-slate-900 flex items-center gap-2">
+                  <i class="ph-fill ph-shield-check text-fortired text-xl"></i>
+                  Plano UTP (Proteção Completa)
+                </span>
+                <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-fortired text-white uppercase">Mais Escolhido</span>
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Ideal se você quer bloquear sites indevidos (redes sociais, apostas, malwares), controlar aplicativos na rede, ter antivírus de borda e prevenção contra ataques hackers (IPS).
+              </p>
+            </div>
+
+            <div 
+              @click="clientDraft.q12_securityPlan = 'FortiCare'"
+              :class="clientDraft.q12_securityPlan === 'FortiCare' ? 'border-2 border-sky-600 bg-sky-50/40 shadow-md' : 'border border-slate-200 hover:bg-slate-50'"
+              class="p-5 rounded-2xl cursor-pointer transition space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-black text-base text-slate-900 flex items-center gap-2">
+                  <i class="ph-fill ph-git-branch text-sky-600 text-xl"></i>
+                  Plano FortiCare (Conectividade & SD-WAN)
+                </span>
+                <span class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 uppercase">Essencial</span>
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Ideal se você precisa apenas de balanceamento inteligente de links de internet (SD-WAN), fechamento de VPN entre unidades e suporte oficial 24x7, sem filtro de conteúdo web.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Comunicação entre Unidades (Q1 e Q2 simplificados) -->
+        <div class="space-y-3 pt-4 border-t border-slate-100">
+          <label class="block text-sm font-extrabold text-slate-900">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-sky-600 text-white text-xs mr-1.5">C</span>
+            Como suas unidades (ou parceiros externos) se conectam via VPN? <span class="text-xs font-normal text-slate-500">(Questões 1 e 2 do QPV)</span>
+          </label>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div 
+              @click="setVpnTopology('single')"
+              :class="clientDraft.vpnTopology === 'single' ? 'border-2 border-sky-600 bg-sky-50/60' : 'border border-slate-200 hover:bg-slate-50'"
+              class="p-4 rounded-2xl cursor-pointer transition">
+              <div class="font-extrabold text-xs text-slate-900 mb-1">🏢 Apenas 1 Unidade / Sem VPN entre filiais</div>
+              <p class="text-[11px] text-slate-500">Unidade única ou cada local acessa apenas a internet.</p>
+            </div>
+            <div 
+              @click="setVpnTopology('star')"
+              :class="clientDraft.vpnTopology === 'star' ? 'border-2 border-sky-600 bg-sky-50/60' : 'border border-slate-200 hover:bg-slate-50'"
+              class="p-4 rounded-2xl cursor-pointer transition">
+              <div class="font-extrabold text-xs text-slate-900 mb-1">⭐ Filiais conectam na Matriz (Estrela)</div>
+              <p class="text-[11px] text-slate-500">As filiais fecham VPN com a Matriz para acessar sistemas.</p>
+            </div>
+            <div 
+              @click="setVpnTopology('mesh')"
+              :class="clientDraft.vpnTopology === 'mesh' ? 'border-2 border-sky-600 bg-sky-50/60' : 'border border-slate-200 hover:bg-slate-50'"
+              class="p-4 rounded-2xl cursor-pointer transition">
+              <div class="font-extrabold text-xs text-slate-900 mb-1">🕸️ Todas se falam entre si + Nuvem (Malha)</div>
+              <p class="text-[11px] text-slate-500">Comunicação direta entre todas as unidades e data centers.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-between pt-4">
+          <button @click="clientStep = 1" class="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-2">
+            <i class="ph-bold ph-arrow-left"></i> Voltar
+          </button>
+          <button @click="clientStep = 3" class="px-6 py-3.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-sm flex items-center gap-2 shadow-lg transition">
+            <span>Mapear Matriz e Filiais</span>
+            <i class="ph-bold ph-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- PASSO 3 DO CLIENTE: MAPA DE UNIDADES (MATRIZ + FILIAIS)   -->
+      <!-- ========================================================= -->
+      <div v-if="clientStep === 3" class="space-y-6">
+        
+        <!-- Cabeçalho + Botões de Adicionar Filial ou Lote de Filiais -->
+        <div class="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <span class="text-xs font-extrabold uppercase tracking-wider text-sky-600">Etapa 3 de 4 • Construtor de Unidades</span>
+            <h3 class="text-xl font-black text-slate-900 mt-0.5">Mapeie sua Matriz e suas Filiais</h3>
+            <p class="text-xs text-slate-500 mt-0.5">
+              Tem várias lojas ou filiais parecidas? Use o botão <strong>"+ Lote de Filiais Iguais"</strong> e preencha uma única vez!
+            </p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button @click="addClientSite('single')" class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition">
+              <i class="ph-bold ph-plus-circle text-base"></i>
+              <span>+ Adicionar Filial Individual</span>
+            </button>
+            <button @click="addClientSite('batch')" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition">
+              <i class="ph-bold ph-stack text-base"></i>
+              <span>+ Lote de Filiais Iguais (P/M/G)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Abas Seletoras das Unidades Cadastradas -->
+        <div class="flex flex-wrap gap-2">
+          <button v-for="(site, idx) in clientDraft.sites" :key="site.id"
+            @click="activeClientSiteIndex = idx"
+            :class="activeClientSiteIndex === idx ? 'bg-slate-900 text-white shadow-md ring-2 ring-sky-500/40' : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'"
+            class="px-4 py-2.5 rounded-2xl text-xs font-extrabold flex items-center gap-2 transition">
+            <i :class="site.quantity > 1 ? 'ph-fill ph-stack text-indigo-400' : (idx === 0 ? 'ph-fill ph-buildings text-sky-400' : 'ph-fill ph-storefront text-emerald-400')" class="text-base"></i>
+            <span>{{ site.name || ('Unidade ' + (idx + 1)) }}</span>
+            <span v-if="site.quantity > 1" class="px-2 py-0.5 rounded-full bg-indigo-500 text-white text-[10px]">
+              {{ site.quantity }} lojas
+            </span>
+          </button>
+        </div>
+
+        <!-- EDITOR AMIGÁVEL DA UNIDADE SELECIONADA -->
+        <div v-if="currentClientSite" class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
+          
+          <div class="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100">
+            <div class="flex-grow grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div class="sm:col-span-2">
+                <label class="block text-[11px] font-bold uppercase text-slate-500 mb-1">Nome da Unidade ou Grupo de Filiais</label>
+                <input v-model="currentClientSite.name" type="text" placeholder="Ex: Matriz São Paulo ou Filiais Padrão P" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-extrabold text-slate-900 focus:ring-2 focus:ring-sky-500 outline-none" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold uppercase text-indigo-600 mb-1">Quantas unidades são iguais a esta?</label>
+                <div class="flex items-center gap-2">
+                  <input v-model.number="currentClientSite.quantity" type="number" min="1" max="500" class="w-full rounded-xl border border-indigo-300 bg-indigo-50/40 px-3.5 py-2 text-sm font-black text-indigo-950 focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  <span class="text-xs font-bold text-slate-500 whitespace-nowrap">unidade(s)</span>
+                </div>
+              </div>
+            </div>
+
+            <button v-if="clientDraft.sites.length > 1" @click="removeClientSite(activeClientSiteIndex)" class="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-bold flex items-center gap-1">
+              <i class="ph-bold ph-trash"></i> Remover
+            </button>
+          </div>
+
+          <!-- BLOCO 1: LINKS DE INTERNET & CABOS (Q5, Q6 e Q4 traduzidos) -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-5 p-5 rounded-2xl bg-slate-50 border border-slate-200">
+            <div>
+              <div class="flex items-center gap-1.5 text-xs font-extrabold text-slate-900 mb-1">
+                <i class="ph-fill ph-globe-hemisphere-west text-sky-600 text-base"></i>
+                Quantos links de internet/MPLS chegam aqui?
+              </div>
+              <p class="text-[11px] text-slate-500 mb-3">Ex: 1 link Vivo + 1 link Claro = 2 links (Portas WAN - Q5).</p>
+              <div class="flex items-center gap-2">
+                <input v-model.number="currentClientSite.q5_wanPorts" type="number" min="1" max="28" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-black text-slate-900" />
+                <span class="text-xs font-bold text-slate-500">Links</span>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-1.5 text-xs font-extrabold text-slate-900 mb-1">
+                <i class="ph-fill ph-gauge text-fortired text-base"></i>
+                Qual a soma da velocidade desses links?
+              </div>
+              <p class="text-[11px] text-slate-500 mb-3">Ex: 500 Mega + 300 Mega = 800 Mbps (Questão 6).</p>
+              <div class="flex gap-1.5">
+                <input v-model.number="currentClientSite.q6_bandwidthValue" type="number" min="1" step="any" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-black text-slate-900" />
+                <select v-model="currentClientSite.q6_bandwidthUnit" class="rounded-xl border border-slate-300 bg-white px-2.5 py-2.5 text-xs font-extrabold text-slate-800">
+                  <option value="Mbps">Mbps</option>
+                  <option value="Gbps">Gbps</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-1.5 text-xs font-extrabold text-slate-900 mb-1">
+                <i class="ph-fill ph-plugs-connected text-indigo-600 text-base"></i>
+                Quantos cabos da rede interna vão no Firewall?
+              </div>
+              <p class="text-[11px] text-slate-500 mb-3">Apenas switches/servidores ligados direto na caixa (Q4 - LAN).</p>
+              <div class="flex items-center gap-2">
+                <input v-model.number="currentClientSite.q4_lanPorts" type="number" min="1" max="28" class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-black text-slate-900" />
+                <span class="text-xs font-bold text-slate-500">Cabos</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- BLOCO 2: PESSOAS E EQUIPAMENTOS CONECTADOS NESTA UNIDADE (Q7, Q8, Q11, Q3) -->
+          <div>
+            <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500 mb-3">
+              Quantos aparelhos e pessoas utilizam a rede desta unidade?
+            </h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="p-4 rounded-2xl border border-sky-200 bg-sky-50/40">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-extrabold text-slate-900">PCs / Servidores no Cabo</span>
+                  <i class="ph-duotone ph-desktop text-lg text-sky-600"></i>
+                </div>
+                <p class="text-[11px] text-slate-500 mb-2">Conectados na rede LAN (Q7)</p>
+                <input v-model.number="currentClientSite.q7_lanDevices" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3 py-2 text-sm font-black text-sky-950" />
+              </div>
+
+              <div class="p-4 rounded-2xl border border-sky-200 bg-sky-50/40">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-extrabold text-slate-900">Celulares / Notebooks Wi-Fi</span>
+                  <i class="ph-duotone ph-wifi-high text-lg text-sky-600"></i>
+                </div>
+                <p class="text-[11px] text-slate-500 mb-2">Passando pelo Firewall (Q8)</p>
+                <input v-model.number="currentClientSite.q8_wifiDevices" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3 py-2 text-sm font-black text-sky-950" />
+              </div>
+
+              <div class="p-4 rounded-2xl border border-sky-200 bg-sky-50/40">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-extrabold text-slate-900">Ramais de Telefone VoIP</span>
+                  <i class="ph-duotone ph-phone-call text-lg text-sky-600"></i>
+                </div>
+                <p class="text-[11px] text-slate-500 mb-2">Telefonia IP na unidade (Q11)</p>
+                <input v-model.number="currentClientSite.q11_voipExtensions" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3 py-2 text-sm font-black text-sky-950" />
+              </div>
+
+              <div class="p-4 rounded-2xl border border-sky-200 bg-sky-50/40">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs font-extrabold text-slate-900">Pessoas em Home Office</span>
+                  <i class="ph-duotone ph-laptop text-lg text-sky-600"></i>
+                </div>
+                <p class="text-[11px] text-slate-500 mb-2">Conectando via Mobile VPN (Q3)</p>
+                <input v-model.number="currentClientSite.q3_mobileVpnUsers" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3 py-2 text-sm font-black text-sky-950" />
+              </div>
+            </div>
+          </div>
+
+          <!-- BLOCO 3: ALTA DISPONIBILIDADE (Q10) & ADICIONAIS (Q13) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-slate-100">
+            <div>
+              <label class="block text-xs font-extrabold text-slate-900 mb-1">
+                <i class="ph-fill ph-CopySimple text-emerald-600 mr-1"></i>
+                Segurança em Dobro: Precisa de 2 equipamentos juntos (Alta Disponibilidade - Q10)?
+              </label>
+              <p class="text-[11px] text-slate-500 mb-2.5">Se um equipamento falhar, o segundo assume na mesma hora sem derrubar a unidade.</p>
+              <select v-model="currentClientSite.q10_haMode" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-xs font-bold text-slate-800">
+                <option value="Não">Não (1 equipamento nesta unidade)</option>
+                <option value="Sim - Ativo/Passivo">Sim — Cluster Ativo/Passivo (2 equipamentos)</option>
+                <option value="Sim - Ativo/Ativo">Sim — Cluster Ativo/Ativo (2 equipamentos)</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-extrabold text-slate-900 mb-1">
+                <i class="ph-fill ph-puzzle-piece text-indigo-600 mr-1"></i>
+                Deseja incluir itens adicionais nesta unidade? (Questão 13)
+              </label>
+              <p class="text-[11px] text-slate-500 mb-2.5">Clique nos itens caso queira cotar junto com o Firewall:</p>
+              <div class="flex flex-wrap gap-2">
+                <button v-for="srv in ['FortiAP', 'FortiSwitch', 'FortiAnalyzer', 'FortiManager']" :key="srv"
+                  type="button"
+                  @click="toggleSiteService(currentClientSite, srv)"
+                  :class="currentClientSite.q13_additionalServices.includes(srv) ? 'bg-sky-600 text-white font-bold shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+                  class="px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5">
+                  <i :class="currentClientSite.q13_additionalServices.includes(srv) ? 'ph-fill ph-check-square' : 'ph-bold ph-square'"></i>
+                  <span>{{ srv }}</span>
+                </button>
+              </div>
+              <p v-if="currentClientSite.q13_additionalServices.includes('FortiAP')" class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 mt-2">
+                <i class="ph-fill ph-warning-circle mr-1"></i> Lembrete: Para <strong>FortiAP</strong>, lembre-se de enviar a planta baixa do local para estudo de cobertura Wi-Fi.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="flex justify-between pt-2">
+          <button @click="clientStep = 2" class="px-5 py-3 rounded-2xl bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs flex items-center gap-2">
+            <i class="ph-bold ph-arrow-left"></i> Voltar
+          </button>
+          <button @click="finishClientJourney" class="px-6 py-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center gap-2 shadow-lg transition">
+            <i class="ph-bold ph-check-circle text-lg"></i>
+            <span>Concluir e Enviar Mapeamento</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================================= -->
+      <!-- PASSO 4 DO CLIENTE: MISSÃO CUMPRIDA! (CONFIRMAÇÃO)        -->
+      <!-- ========================================================= -->
+      <div v-if="clientStep === 4" class="bg-white rounded-3xl p-8 sm:p-10 shadow-xl border-2 border-emerald-500 text-center space-y-6 max-w-3xl mx-auto">
+        <div class="w-20 h-20 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+          <i class="ph-fill ph-seal-check text-5xl"></i>
+        </div>
+
+        <div class="space-y-2">
+          <span class="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-extrabold uppercase tracking-wider">
+            100% Mapeado • Missão Cumprida!
+          </span>
+          <h3 class="text-3xl font-black text-slate-900">Excelente trabalho, {{ clientDraft.contactName || clientDraft.companyName || 'Parceiro' }}!</h3>
+          <p class="text-sm text-slate-600 max-w-xl mx-auto leading-relaxed">
+            Seu Questionário de Pré-Venda (QPV) com <strong>{{ totalMappedUnitsCount(clientDraft) }} unidade(s)</strong> foi registrado e já está disponível na fila de engenharia do Consultor Mundivox.
+          </p>
+        </div>
+
+        <!-- Resumo Amigável do que o Cliente Preencheu (Sem mostrar a caixa técnica para não confundir) -->
+        <div class="bg-slate-50 rounded-2xl p-5 border border-slate-200 text-left space-y-3">
+          <div class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Resumo do seu Mapeamento Enviado</div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div class="p-3 bg-white rounded-xl border border-slate-200">
+              <span class="text-slate-400 block">Empresa</span>
+              <strong class="text-slate-900 text-sm">{{ clientDraft.companyName || 'Não informada' }}</strong>
+            </div>
+            <div class="p-3 bg-white rounded-xl border border-slate-200">
+              <span class="text-slate-400 block">Plano Escolhido (Q12)</span>
+              <strong class="text-slate-900 text-sm">{{ clientDraft.q12_securityPlan }}</strong>
+            </div>
+            <div class="p-3 bg-white rounded-xl border border-slate-200">
+              <span class="text-slate-400 block">Crescimento Previsto (Q9)</span>
+              <strong class="text-slate-900 text-sm">+{{ clientDraft.q9_growthPercent }}% (12 a 36 meses)</strong>
+            </div>
+          </div>
+
+          <div class="divide-y divide-slate-200 border border-slate-200 rounded-xl bg-white overflow-hidden text-xs">
+            <div v-for="(s, i) in clientDraft.sites" :key="s.id" class="p-3 flex flex-wrap justify-between items-center gap-2">
+              <div>
+                <strong class="text-slate-900">{{ s.quantity }}x {{ s.name }}</strong>
+                <span class="text-slate-500 ml-2">({{ s.q5_wanPorts }} Links WAN / {{ s.q4_lanPorts }} Cabos LAN)</span>
+              </div>
+              <div class="text-slate-600 font-semibold">
+                Banda: {{ s.q6_bandwidthValue }} {{ s.q6_bandwidthUnit }} | {{ s.q7_lanDevices + s.q8_wifiDevices + s.q11_voipExtensions + s.q3_mobileVpnUsers }} disp. atuais
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-center gap-3 pt-2">
+          <button @click="exportSingleQpvJson(clientDraft)" class="px-5 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-extrabold flex items-center gap-2 shadow-md">
+            <i class="ph-bold ph-download-simple text-base"></i>
+            <span>Baixar Arquivo do Meu QPV (.json)</span>
+          </button>
+          <button @click="openConsultantDirectWithLastSubmission" class="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold flex items-center gap-2 shadow-md">
+            <i class="ph-bold ph-magnifying-glass text-base"></i>
+            <span>Ver Resultado na Área do Consultor (Demo)</span>
+          </button>
+          <button @click="startNewClientDraft" class="px-4 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold">
+            Preencher Novo QPV
+          </button>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- TELA 2: ÁREA RESTRITA DO CONSULTOR MUNDIVOX (COM DIMENSIONAMENTO AO VIVO) -->
+    <!-- ========================================================================= -->
+    <main v-if="appMode === 'consultant'" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      
+      <!-- BARRA SUPERIOR DO CONSULTOR: SELETOR DE CLIENTE / QPV RECEBIDO + SUB-ABAS -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 no-print">
+        
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
+            <span class="text-xs font-black uppercase tracking-wider text-slate-700">QPV Selecionado:</span>
+          </div>
+
+          <select v-model="selectedSubmissionId" @change="selectedSiteIndex = 0" class="rounded-xl border-2 border-slate-900 bg-slate-50 px-3.5 py-2 text-xs font-extrabold text-slate-900 focus:ring-2 focus:ring-sky-500 outline-none">
+            <option v-for="sub in submissions" :key="sub.id" :value="sub.id">
+              {{ sub.companyName }} ({{ totalMappedUnitsCount(sub) }} unid. — {{ sub.submittedAt }})
+            </option>
+          </select>
+
+          <button @click="createNewSubmissionInConsultant" class="px-3 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 text-xs font-bold flex items-center gap-1.5">
+            <i class="ph-bold ph-plus"></i> Novo Projeto
+          </button>
+
+          <label class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 cursor-pointer">
+            <i class="ph-bold ph-upload-simple"></i> Importar QPV (.json)
+            <input type="file" accept=".json" @change="importQpvJson" class="hidden" />
+          </label>
+        </div>
+
+        <!-- Sub-Abas do Consultor -->
+        <div class="flex items-center gap-2">
+          <button 
+            @click="consultantTab = 'analyzer'" 
+            :class="consultantTab === 'analyzer' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+            <i class="ph-bold ph-SlidersHorizontal"></i>
+            <span>Análise & Dimensionamento</span>
+          </button>
+          <button 
+            @click="consultantTab = 'report'" 
+            :class="consultantTab === 'report' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+            <i class="ph-bold ph-FileText"></i>
+            <span>Relatório Completo (PDF)</span>
+          </button>
+          <button 
+            @click="consultantTab = 'specs'" 
+            :class="consultantTab === 'specs' ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+            class="px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+            <i class="ph-bold ph-Memory"></i>
+            <span class="hidden md:inline">Matriz RAM & Datasheets</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- ABA 1 DO CONSULTOR: ANALISADOR MULTI-FILIAL + BARRA DIREITA FIXA (STICKY) -->
+      <!-- ========================================================================= -->
+      <div v-if="consultantTab === 'analyzer' && currentSubmission" class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start no-print">
+        
+        <!-- COLUNA ESQUERDA (7 COLUNAS): RESUMO GLOBAL + SELETOR DE UNIDADES + RESPOSTAS QPV -->
+        <div class="lg:col-span-7 space-y-6">
+          
+          <!-- Card BOM Consolidado (Todas as Unidades do Cliente) -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="bg-slate-900 text-white px-5 py-3.5 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span class="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Visão Consolidada do Projeto (Multi-Filial)</span>
+                <h2 class="text-base font-black">{{ currentSubmission.companyName }} — {{ totalMappedUnitsCount(currentSubmission) }} Localidade(s)</h2>
+              </div>
+              <div class="text-xs text-slate-300">
+                Contato: <strong>{{ currentSubmission.contactName || 'N/A' }}</strong> | Cresc. Q9: <strong>+{{ currentSubmission.q9_growthPercent }}%</strong>
+              </div>
+            </div>
+
+            <!-- Lista de Unidades (Clique para inspecionar cada filial na barra da direita!) -->
+            <div class="p-4 bg-slate-50 border-b border-slate-200">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-slate-600">
+                  Selecione a Unidade/Filial abaixo para ver o dimensionamento detalhado à direita:
+                </span>
+                <button @click="addSiteToCurrentSubmission" class="text-xs font-bold text-sky-700 hover:text-sky-900 flex items-center gap-1">
+                  <i class="ph-bold ph-plus-circle"></i> + Adicionar Filial
+                </button>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div v-for="(siteEval, idx) in evaluatedSubmissionSites" :key="siteEval.site.id"
+                  @click="selectedSiteIndex = idx"
+                  :class="selectedSiteIndex === idx ? 'border-2 border-slate-900 bg-white shadow-md ring-2 ring-sky-500/20' : 'border border-slate-200 bg-white/70 hover:bg-white'"
+                  class="p-3.5 rounded-xl cursor-pointer transition flex items-center justify-between gap-2">
+                  <div>
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full" :class="siteEval.recommendedBox ? 'bg-emerald-500' : 'bg-rose-500'"></span>
+                      <span class="font-extrabold text-xs text-slate-900">{{ siteEval.site.name }}</span>
+                      <span v-if="siteEval.site.quantity > 1" class="text-[10px] px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 font-bold">
+                        Lote {{ siteEval.site.quantity }} un.
+                      </span>
+                    </div>
+                    <div class="text-[11px] text-slate-500 mt-0.5">
+                      Banda: {{ formatMbps(siteEval.requiredBandwidthMbps) }} | {{ siteEval.totalUsersWithGrowth }} Users | {{ siteEval.totalRequiredPorts }} Portas
+                    </div>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <span v-if="siteEval.recommendedBox" class="inline-block px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-black text-xs">
+                      {{ siteEval.totalAppliancesForThisSiteGroup }}x {{ siteEval.recommendedBox.sku }}
+                    </span>
+                    <span v-else class="inline-block px-2 py-1 rounded-lg bg-rose-100 text-rose-800 font-bold text-[10px]">
+                      Acima 200G
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Resumo Total de Caixas (BOM Geral) -->
+            <div class="px-5 py-3 bg-emerald-50/60 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span class="font-bold text-emerald-950 flex items-center gap-1.5">
+                <i class="ph-fill ph-package text-emerald-600 text-base"></i>
+                Total de Caixas no Projeto (BOM):
+              </span>
+              <div class="flex flex-wrap gap-2">
+                <span v-for="(count, sku) in projectBomSummary" :key="sku" class="px-2.5 py-1 rounded-md bg-emerald-600 text-white font-black text-xs shadow-sm">
+                  {{ count }}x {{ sku }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- FORMULÁRIO TÉCNICO COMPLETO DAS 13 QUESTÕES DO QPV (EDITÁVEL PELO CONSULTOR) -->
+          <div v-if="currentConsultantSite" class="bg-white rounded-2xl shadow-sm border border-slate-200 divide-y divide-slate-200">
+            
+            <div class="p-5 bg-slate-900 text-white rounded-t-2xl flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span class="text-[10px] font-bold uppercase tracking-widest text-sky-400">Inspeção & Edição Técnica do QPV</span>
+                <h3 class="text-lg font-black">Respostas da Unidade: {{ currentConsultantSite.name }}</h3>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-slate-300">Qtd. de filiais iguais:</span>
+                <input v-model.number="currentConsultantSite.quantity" type="number" min="1" class="w-16 rounded-lg bg-slate-800 border border-slate-700 px-2.5 py-1 text-xs font-black text-white text-center" />
+              </div>
+            </div>
+
+            <!-- Q1 & Q2: VPN Site-to-Site -->
+            <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-white text-[11px] mr-1">1</span>
+                  Quantas VPN Site-to-Site serão configuradas?
+                </label>
+                <input v-model.number="currentConsultantSite.q1_vpnSiteToSite" type="number" min="0" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-800 mb-1">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-white text-[11px] mr-1">2</span>
+                  Quantos túneis dentro destas VPNs?
+                </label>
+                <input v-model.number="currentConsultantSite.q2_vpnTunnels" type="number" min="0" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold" />
+              </div>
+            </div>
+
+            <!-- Q3: Mobile VPN -->
+            <div class="p-5 bg-sky-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] font-bold mr-1">3</span>
+                <label class="text-xs font-bold text-slate-900">Quantos usuários utilizarão Mobile VPN nesta unidade?</label>
+                <span class="ml-2 text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-bold">Soma nos Usuários</span>
+              </div>
+              <input v-model.number="currentConsultantSite.q3_mobileVpnUsers" type="number" min="0" class="sm:w-40 rounded-xl border border-sky-300 bg-white px-3 py-2 text-sm font-black text-sky-950" />
+            </div>
+
+            <!-- Q4 & Q5: Portas LAN e WAN -->
+            <div class="p-5 bg-indigo-50/30 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-900 mb-1">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] mr-1">4</span>
+                  Quantas Interfaces LAN são necessárias?
+                </label>
+                <input v-model.number="currentConsultantSite.q4_lanPorts" type="number" min="1" class="w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-black text-indigo-950" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-900 mb-1">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] mr-1">5</span>
+                  Quantas Interfaces WAN são necessárias?
+                </label>
+                <input v-model.number="currentConsultantSite.q5_wanPorts" type="number" min="1" class="w-full rounded-xl border border-indigo-300 bg-white px-3 py-2 text-sm font-black text-indigo-950" />
+              </div>
+            </div>
+
+            <!-- Q6: Banda Total -->
+            <div class="p-5 bg-rose-50/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-fortired text-white text-[11px] font-bold mr-1">6</span>
+                <label class="text-xs font-bold text-slate-900">Somatória das bandas dos links (Internet + MPLS/L2L)</label>
+                <p class="text-[11px] text-slate-500">Validado contra <em>Threat Protection Throughput</em>.</p>
+              </div>
+              <div class="flex gap-2 sm:w-52">
+                <input v-model.number="currentConsultantSite.q6_bandwidthValue" type="number" min="1" step="any" class="w-full rounded-xl border border-rose-300 bg-white px-3 py-2 text-sm font-black" />
+                <select v-model="currentConsultantSite.q6_bandwidthUnit" class="rounded-xl border border-rose-300 bg-white px-2.5 py-2 text-xs font-bold">
+                  <option value="Mbps">Mbps</option>
+                  <option value="Gbps">Gbps</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Q7, Q8 e Q11: Dispositivos LAN, Wi-Fi e Ramais VoIP -->
+            <div class="p-5 bg-sky-50/40 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-900 mb-1">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] mr-1">7</span>
+                  Dispositivos Rede LAN
+                </label>
+                <input v-model.number="currentConsultantSite.q7_lanDevices" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3 py-2 text-sm font-black text-sky-950" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-900 mb-1">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] mr-1">8</span>
+                  Dispositivos via Wi-Fi
+                </label>
+                <input v-model.number="currentConsultantSite.q8_wifiDevices" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3 py-2 text-sm font-black text-sky-950" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-900 mb-1">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] mr-1">11</span>
+                  Ramais Telefonia VoIP
+                </label>
+                <input v-model.number="currentConsultantSite.q11_voipExtensions" type="number" min="0" class="w-full rounded-xl border border-sky-300 bg-white px-3 py-2 text-sm font-black text-sky-950" />
+              </div>
+            </div>
+
+            <!-- Q9, Q10 e Q12 -->
+            <div class="p-5 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-bold text-slate-900 mb-1">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-sky-600 text-white text-[11px] mr-1">9</span>
+                  Crescimento 12-36m (%)
+                </label>
+                <input v-model.number="currentSubmission.q9_growthPercent" type="number" min="0" max="500" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-black" />
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-900 mb-1">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-white text-[11px] mr-1">10</span>
+                  Cluster HA na Unidade
+                </label>
+                <select v-model="currentConsultantSite.q10_haMode" class="w-full rounded-xl border border-slate-300 px-2.5 py-2 text-xs font-bold">
+                  <option value="Não">Não (1x Caixa)</option>
+                  <option value="Sim - Ativo/Passivo">Sim - Ativo/Passivo (2x)</option>
+                  <option value="Sim - Ativo/Ativo">Sim - Ativo/Ativo (2x)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-900 mb-1">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-white text-[11px] mr-1">12</span>
+                  Plano Segurança
+                </label>
+                <select v-model="currentSubmission.q12_securityPlan" class="w-full rounded-xl border border-slate-300 px-2.5 py-2 text-xs font-bold">
+                  <option value="UTP (Unified Threat Protection)">UTP (Unified Threat Protection)</option>
+                  <option value="FortiCare">FortiCare</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Q13: Serviços Adicionais -->
+            <div class="p-5">
+              <label class="block text-xs font-bold text-slate-900 mb-2">
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-800 text-white text-[11px] mr-1">13</span>
+                Serviços Adicionais nesta Unidade:
+              </label>
+              <div class="flex flex-wrap gap-2">
+                <button v-for="srv in ['FortiAP', 'FortiSwitch', 'FortiAnalyzer', 'FortiManager']" :key="srv"
+                  type="button"
+                  @click="toggleSiteService(currentConsultantSite, srv)"
+                  :class="currentConsultantSite.q13_additionalServices.includes(srv) ? 'bg-sky-600 text-white font-bold' : 'bg-slate-100 text-slate-600'"
+                  class="px-3 py-1.5 rounded-xl text-xs transition">
+                  {{ srv }}
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- COLUNA DIREITA FIXA (5 COLUNAS - STICKY): CAIXA, O PORQUÊ E DESCARTADAS   -->
+        <!-- ========================================================================= -->
+        <div v-if="activeSiteEvaluation" class="lg:col-span-5 lg:sticky lg:top-24 space-y-5 self-start">
+          
+          <!-- CARD PRINCIPAL: CAIXA DIMENSIONADA + O PORQUÊ FOI ESCOLHIDA -->
+          <div class="bg-white rounded-2xl shadow-xl border-2 border-slate-900 overflow-hidden">
+            
+            <div class="bg-slate-900 text-white px-5 py-3.5 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <h2 class="text-xs font-extrabold uppercase tracking-wider">
+                  Dimensionamento: {{ activeSiteEvaluation.site.name }}
+                </h2>
+              </div>
+              <span class="text-[11px] bg-slate-800 text-emerald-300 px-2.5 py-0.5 rounded font-mono font-bold">
+                Ao Vivo
+              </span>
+            </div>
+
+            <!-- Caso Estoure a 200G -->
+            <div v-if="!activeSiteEvaluation.recommendedBox" class="p-6 bg-rose-50 text-center space-y-3">
+              <i class="ph-duotone ph-warning-octagon text-5xl text-fortired mx-auto"></i>
+              <h3 class="text-base font-black text-rose-950">Acima da Capacidade do FortiGate 200G</h3>
+              <p class="text-xs text-rose-800">
+                Esta unidade exige <strong>{{ formatMbps(activeSiteEvaluation.requiredBandwidthMbps) }}</strong>, <strong>{{ activeSiteEvaluation.totalUsersWithGrowth }} usuários</strong> e <strong>{{ activeSiteEvaluation.totalRequiredPorts }} portas</strong>. Considere modelos da série 400F/600F.
+              </p>
+            </div>
+
+            <!-- Caixa Recomendada + O PORQUÊ -->
+            <div v-else class="p-5 space-y-4">
+              
+              <div class="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+                <div>
+                  <div class="flex flex-wrap items-center gap-1.5 mb-1">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 uppercase">
+                      Caixa Ideal Escolhida
+                    </span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900">
+                      {{ activeSiteEvaluation.recommendedBox.ramGb }} GB RAM
+                    </span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                      {{ activeSiteEvaluation.recommendedBox.formFactor }}
+                    </span>
+                  </div>
+                  <h3 class="text-2xl font-black text-slate-900">
+                    {{ activeSiteEvaluation.appliancesPerSite }}x {{ activeSiteEvaluation.recommendedBox.name }}
+                  </h3>
+                  <p class="text-xs text-slate-500">
+                    SKU: <strong class="text-slate-800">{{ activeSiteEvaluation.recommendedBox.sku }}</strong> | Licença: <strong class="text-slate-800">{{ currentSubmission.q12_securityPlan }}</strong>
+                  </p>
+                  <p v-if="activeSiteEvaluation.site.quantity > 1" class="text-xs font-extrabold text-indigo-700 mt-1">
+                    <i class="ph-fill ph-stack"></i> Para o lote de {{ activeSiteEvaluation.site.quantity }} unidades: Total de {{ activeSiteEvaluation.totalAppliancesForThisSiteGroup }}x caixas
+                  </p>
+                </div>
+
+                <div :class="activeSiteEvaluation.appliancesPerSite === 2 ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'" class="px-3 py-2 rounded-xl text-center shrink-0">
+                  <div class="text-lg font-black leading-none">{{ activeSiteEvaluation.appliancesPerSite }} UN</div>
+                  <div class="text-[9px] font-bold uppercase mt-1 opacity-90">
+                    {{ activeSiteEvaluation.appliancesPerSite === 2 ? 'Cluster HA' : 'Por Local' }}
+                  </div>
+                </div>
+              </div>
+
+              <!-- BOX VERDE: POR QUE ESTA CAIXA FOI ESCOLHIDA? -->
+              <div class="p-3.5 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-1.5">
+                <div class="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
+                  <i class="ph-fill ph-check-seal text-emerald-600 text-base"></i>
+                  Por que o {{ activeSiteEvaluation.recommendedBox.name }} foi escolhido?
+                </div>
+                <p class="text-[11px] text-emerald-900 leading-relaxed">
+                  É o equipamento de <strong>menor porte/custo</strong> que atende simultaneamente aos <strong>{{ formatMbps(activeSiteEvaluation.requiredBandwidthMbps) }}</strong> de Threat Protection (suporta até {{ formatMbps(activeSiteEvaluation.recommendedBox.threatProtectionMbps) }}), comporta os <strong>{{ activeSiteEvaluation.totalUsersWithGrowth }} usuários projetados</strong> dentro do limite de <strong>{{ activeSiteEvaluation.recommendedBox.ramGb }} GB de RAM</strong> (máx {{ activeSiteEvaluation.recommendedBox.maxUsersByRam }}) e entrega <strong>{{ activeSiteEvaluation.recommendedBox.totalConfigurablePorts }} portas físicas</strong> para as {{ activeSiteEvaluation.totalRequiredPorts }} exigidas.
+                </p>
+              </div>
+
+              <!-- BARRAS DE OCUPAÇÃO E MEMÓRIA DE CÁLCULO -->
+              <div class="space-y-2.5">
+                <!-- 1. Banda -->
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <div class="flex justify-between font-bold mb-1">
+                    <span>1. Banda (Q6 vs Threat Protection)</span>
+                    <span class="text-fortired">{{ formatMbps(activeSiteEvaluation.requiredBandwidthMbps) }} / {{ formatMbps(activeSiteEvaluation.recommendedBox.threatProtectionMbps) }}</span>
+                  </div>
+                  <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div class="bg-fortired h-full rounded-full" :style="{ width: Math.min(100, (activeSiteEvaluation.requiredBandwidthMbps / activeSiteEvaluation.recommendedBox.threatProtectionMbps) * 100) + '%' }"></div>
+                  </div>
+                </div>
+
+                <!-- 2. Usuários / RAM -->
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <div class="flex justify-between font-bold mb-1">
+                    <span>2. Usuários c/ +{{ currentSubmission.q9_growthPercent }}% (RAM {{ activeSiteEvaluation.recommendedBox.ramGb }}GB)</span>
+                    <span class="text-sky-800">{{ activeSiteEvaluation.totalUsersWithGrowth }} / {{ activeSiteEvaluation.recommendedBox.maxUsersByRam }} máx</span>
+                  </div>
+                  <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-1">
+                    <div class="bg-sky-600 h-full rounded-full" :style="{ width: Math.min(100, (activeSiteEvaluation.totalUsersWithGrowth / activeSiteEvaluation.recommendedBox.maxUsersByRam) * 100) + '%' }"></div>
+                  </div>
+                  <div class="text-[10px] text-slate-500">
+                    Fórmula: ({{ activeSiteEvaluation.site.q3_mobileVpnUsers }} VPN + {{ activeSiteEvaluation.site.q7_lanDevices }} LAN + {{ activeSiteEvaluation.site.q8_wifiDevices }} WiFi + {{ activeSiteEvaluation.site.q11_voipExtensions }} VoIP = {{ activeSiteEvaluation.baseUsers }}) + {{ currentSubmission.q9_growthPercent }}% = <strong>{{ activeSiteEvaluation.totalUsersWithGrowth }} usuários</strong>
+                  </div>
+                </div>
+
+                <!-- 3. Portas -->
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <div class="flex justify-between font-bold">
+                    <span>3. Portas Físicas (Q4 LAN + Q5 WAN)</span>
+                    <span class="text-indigo-900">{{ activeSiteEvaluation.totalRequiredPorts }} pedidas / {{ activeSiteEvaluation.recommendedBox.totalConfigurablePorts }} na caixa</span>
+                  </div>
+                  <div class="text-[10px] text-slate-500 mt-0.5">
+                    {{ activeSiteEvaluation.recommendedBox.portsDescription }}
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- CARD SECUNDÁRIO: POR QUE AS OUTRAS CAIXAS NÃO FORAM CONSIDERADAS? -->
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="px-5 py-3 bg-slate-900 text-white flex items-center justify-between">
+              <h3 class="text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+                <i class="ph-fill ph-list-magnifying-glass text-amber-400"></i>
+                Por que as outras caixas não foram escolhidas?
+              </h3>
+            </div>
+
+            <div class="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+              <div v-for="box in activeSiteEvaluation.evaluatedBoxes" :key="box.id"
+                :class="activeSiteEvaluation.recommendedBox && activeSiteEvaluation.recommendedBox.id === box.id ? 'bg-emerald-50/80' : ''"
+                class="p-3.5 text-xs space-y-1.5">
+                
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-2">
+                    <span v-if="activeSiteEvaluation.recommendedBox && activeSiteEvaluation.recommendedBox.id === box.id" class="px-2 py-0.5 rounded bg-emerald-600 text-white font-black text-[10px]">
+                      ESCOLHIDA
+                    </span>
+                    <span v-else-if="box.passedAll" class="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-bold text-[10px]">
+                      ACIMA / CUSTO MAIOR
+                    </span>
+                    <span v-else class="px-2 py-0.5 rounded bg-rose-100 text-rose-700 font-extrabold text-[10px]">
+                      REPROVADA
+                    </span>
+                    <strong class="text-slate-900">{{ box.name }}</strong>
+                    <span class="text-[10px] text-slate-500">({{ box.ramGb }}GB RAM | {{ formatMbps(box.threatProtectionMbps) }} | {{ box.totalConfigurablePorts }}p)</span>
+                  </div>
+                </div>
+
+                <!-- Explicação detalhada do motivo -->
+                <div v-if="activeSiteEvaluation.recommendedBox && activeSiteEvaluation.recommendedBox.id === box.id" class="text-[11px] text-emerald-800 font-semibold">
+                  ✓ Selecionada por ser o modelo de melhor custo-benefício que cumpre 100% dos critérios sem folga excessiva e sem faltar recurso.
+                </div>
+                <div v-else-if="box.passedAll" class="text-[11px] text-slate-500">
+                  • Atende tecnicamente a todos os requisitos, mas foi descartada porque o <strong>{{ activeSiteEvaluation.recommendedBox ? activeSiteEvaluation.recommendedBox.name : 'modelo menor' }}</strong> já supre a demanda com menor porte/investimento.
+                </div>
+                <div v-else class="flex flex-wrap gap-1.5">
+                  <span v-for="(reason, rIdx) in box.failReasons" :key="rIdx" class="text-[11px] px-2 py-0.5 rounded-md bg-rose-50 text-rose-800 border border-rose-200 font-semibold">
+                    ✗ {{ reason }}
+                  </span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- ABA 2 DO CONSULTOR: RELATÓRIO EXECUTIVO COMPLETO (IMPRIMÍVEL)             -->
+      <!-- ========================================================================= -->
+      <div v-if="consultantTab === 'report' && currentSubmission" class="space-y-6">
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 no-print">
+          <button @click="consultantTab = 'analyzer'" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5">
+            <i class="ph-bold ph-arrow-left"></i> Voltar para Análise
+          </button>
+          <div class="flex items-center gap-2">
+            <button @click="exportSingleQpvJson(currentSubmission)" class="px-4 py-2 rounded-xl bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5">
+              <i class="ph-bold ph-download-simple"></i> Exportar JSON
+            </button>
+            <button @click="printConsultantReport" class="px-4 py-2 rounded-xl bg-fortired hover:bg-red-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm">
+              <i class="ph-bold ph-printer"></i> Imprimir / Salvar PDF
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-lg border border-slate-200 p-8 sm:p-10 max-w-5xl mx-auto space-y-8">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b-2 border-slate-900 pb-6">
+            <div>
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black">MV</div>
+                <span class="text-2xl font-black tracking-wider text-slate-900">MUNDIVOX</span>
+              </div>
+              <h2 class="text-lg font-bold text-slate-800 mt-1">Relatório Oficial de Dimensionamento QPV — FortiGate</h2>
+            </div>
+            <div class="text-xs text-slate-600 sm:text-right space-y-1">
+              <div><strong>Empresa:</strong> {{ currentSubmission.companyName }}</div>
+              <div><strong>Responsável:</strong> {{ currentSubmission.contactName }} ({{ currentSubmission.contactEmail }})</div>
+              <div><strong>Data:</strong> {{ currentSubmission.submittedAt }}</div>
+            </div>
+          </div>
+
+          <!-- Tabela Consolidada de Caixas por Unidade -->
+          <div class="space-y-3">
+            <h3 class="text-sm font-black uppercase tracking-wider text-slate-900">
+              1. Quadro Consolidado de Equipamentos Dimensionados por Unidade
+            </h3>
+            <div class="overflow-x-auto border border-slate-200 rounded-2xl">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr class="bg-slate-900 text-white">
+                    <th class="p-3">Unidade / Filial</th>
+                    <th class="p-3">Qtd. Locais</th>
+                    <th class="p-3">Banda (Q6)</th>
+                    <th class="p-3">Usuários c/ +{{ currentSubmission.q9_growthPercent }}%</th>
+                    <th class="p-3">Portas (Q4+Q5)</th>
+                    <th class="p-3">Cluster HA (Q10)</th>
+                    <th class="p-3">Caixa Dimensionada</th>
+                    <th class="p-3">Total Caixas</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  <tr v-for="item in evaluatedSubmissionSites" :key="item.site.id">
+                    <td class="p-3 font-bold text-slate-900">{{ item.site.name }}</td>
+                    <td class="p-3">{{ item.site.quantity }}</td>
+                    <td class="p-3 font-semibold text-fortired">{{ formatMbps(item.requiredBandwidthMbps) }}</td>
+                    <td class="p-3">{{ item.totalUsersWithGrowth }} disp.</td>
+                    <td class="p-3">{{ item.totalRequiredPorts }} ({{ item.site.q4_lanPorts }}L + {{ item.site.q5_wanPorts }}W)</td>
+                    <td class="p-3">{{ item.site.q10_haMode }}</td>
+                    <td class="p-3 font-black text-emerald-800">
+                      {{ item.recommendedBox ? item.recommendedBox.name + ' (' + item.recommendedBox.ramGb + 'GB RAM)' : 'Acima 200G' }}
+                    </td>
+                    <td class="p-3 font-black text-slate-900">
+                      {{ item.recommendedBox ? item.totalAppliancesForThisSiteGroup + 'x ' + item.recommendedBox.sku : '-' }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Detalhamento Justificado por Unidade -->
+          <div class="space-y-4">
+            <h3 class="text-sm font-black uppercase tracking-wider text-slate-900">
+              2. Memória de Cálculo e Justificativa Técnica por Unidade
+            </h3>
+            <div v-for="item in evaluatedSubmissionSites" :key="item.site.id" class="p-5 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-2 print-break-avoid">
+              <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-200 pb-2">
+                <strong class="text-sm text-slate-900">{{ item.site.quantity }}x {{ item.site.name }}</strong>
+                <span v-if="item.recommendedBox" class="px-3 py-1 rounded-lg bg-slate-900 text-white text-xs font-black">
+                  Recomendado: {{ item.totalAppliancesForThisSiteGroup }}x {{ item.recommendedBox.name }} ({{ currentSubmission.q12_securityPlan }})
+                </span>
+              </div>
+              <p v-if="item.recommendedBox" class="text-xs text-slate-700 leading-relaxed">
+                • <strong>Justificativa:</strong> O modelo <strong>{{ item.recommendedBox.name }}</strong> foi selecionado por atender aos {{ formatMbps(item.requiredBandwidthMbps) }} de banda (suporta {{ formatMbps(item.recommendedBox.threatProtectionMbps) }} em Threat Protection), comportar {{ item.totalUsersWithGrowth }} usuários projetados (base de {{ item.baseUsers }} dispositivos + {{ currentSubmission.q9_growthPercent }}% de crescimento, dentro do limite de {{ item.recommendedBox.maxUsersByRam }} usuários dos seus {{ item.recommendedBox.ramGb }} GB de RAM) e fornecer {{ item.recommendedBox.totalConfigurablePorts }} portas configuráveis para as {{ item.totalRequiredPorts }} solicitadas.
+              </p>
+              <p class="text-[11px] text-slate-500">
+                • <strong>Adicionais (Q13):</strong> {{ item.site.q13_additionalServices.length ? item.site.q13_additionalServices.join(', ') : 'Nenhum serviço adicional' }} | <strong>VPNs (Q1/Q2):</strong> {{ item.site.q1_vpnSiteToSite }} VPNs / {{ item.site.q2_vpnTunnels }} Túneis.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- ABA 3 DO CONSULTOR: MATRIZ DE RAM & DATASHEETS EDITÁVEL                   -->
+      <!-- ========================================================================= -->
+      <div v-if="consultantTab === 'specs'" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4 no-print">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-sky-600">Tabela de Engenharia Mundivox</span>
+          <h2 class="text-lg font-black text-slate-900">Parâmetros Oficiais dos Datasheets & Limites de Usuários por RAM</h2>
+          <p class="text-xs text-slate-500">
+            Abaixo estão os 9 modelos cadastrados. A <strong>FortiGate 30G</strong> está cravada em 50 usuários máximos. Você pode calibrar qualquer valor em tempo real:
+          </p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-900 text-white uppercase text-[11px]">
+                <th class="p-3 rounded-tl-xl">Modelo</th>
+                <th class="p-3">RAM (GB)</th>
+                <th class="p-3 bg-sky-900">Máx Usuários (RAM)</th>
+                <th class="p-3">Threat Protection (Q6)</th>
+                <th class="p-3">Portas Totais (Q4+Q5)</th>
+                <th class="p-3 rounded-tr-xl">Descrição Física das Portas</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200">
+              <tr v-for="box in firewallModels" :key="box.id">
+                <td class="p-3 font-black text-slate-900">{{ box.name }} ({{ box.sku }})</td>
+                <td class="p-3">
+                  <input v-model.number="box.ramGb" type="number" min="1" class="w-16 rounded border border-slate-300 px-2 py-1 font-bold text-center" /> GB
+                </td>
+                <td class="p-3 bg-sky-50">
+                  <input v-model.number="box.maxUsersByRam" type="number" min="1" class="w-20 rounded border border-sky-400 bg-white px-2 py-1 font-black text-sky-950 text-center" /> users
+                </td>
+                <td class="p-3 font-extrabold text-fortired">{{ formatMbps(box.threatProtectionMbps) }}</td>
+                <td class="p-3 font-bold text-indigo-900">{{ box.totalConfigurablePorts }} portas</td>
+                <td class="p-3 text-slate-600">{{ box.portsDescription }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </main>
+
+  </div>
+
+  <script>
+    const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+    createApp({
+      setup() {
+        // Modo principal: 'landing' | 'client' | 'consultant'
+        const appMode = ref('landing');
+        const showPinModal = ref(false);
+        const pinInput = ref('');
+        const pinError = ref(false);
+        const isConsultantAuthenticated = ref(false);
+        const toastMessage = ref('');
+
+        // Controle da Jornada Gamificada do Cliente
+        const clientStep = ref(1);
+        const activeClientSiteIndex = ref(0);
+
+        // Controle do Painel do Consultor
+        const consultantTab = ref('analyzer');
+        const selectedSubmissionId = ref('sub-demo-1');
+        const selectedSiteIndex = ref(0);
+
+        // MATRIZ DE HARDWARE EXTRAÍDA DOS 8 DATASHEETS + MEMÓRIA RAM (30G = 50 USUÁRIOS)
+        const firewallModels = reactive([
+          {
+            id: 'fg-30g',
+            name: 'FortiGate 30G',
+            sku: 'FG-30G',
+            series: 'G',
+            tierOrder: 1,
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 50, // Cravado em 50 usuários conforme regra
+            threatProtectionMbps: 500,
+            ngfwMbps: 570,
+            ipsMbps: 800,
+            totalConfigurablePorts: 4,
+            portsDescription: '4x GE RJ45 (1x WAN + 2x Internas + 1x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-40f',
+            name: 'FortiGate 40F',
+            sku: 'FG-40F',
+            series: 'F',
+            tierOrder: 2,
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 100,
+            threatProtectionMbps: 600,
+            ngfwMbps: 800,
+            ipsMbps: 1000,
+            totalConfigurablePorts: 5,
+            portsDescription: '5x GE RJ45 (1x WAN + 3x Internas + 1x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-60f',
+            name: 'FortiGate 60F',
+            sku: 'FG-60F',
+            series: 'F',
+            tierOrder: 3,
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 150,
+            threatProtectionMbps: 700,
+            ngfwMbps: 1000,
+            ipsMbps: 1400,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x GE RJ45 (2x WAN + 1x DMZ + 5x Internas + 2x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-80f',
+            name: 'FortiGate 80F',
+            sku: 'FG-80F',
+            series: 'F',
+            tierOrder: 4,
+            formFactor: 'Desktop',
+            ramGb: 4,
+            maxUsersByRam: 200,
+            threatProtectionMbps: 900,
+            ngfwMbps: 1000,
+            ipsMbps: 1400,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x Portas (2x RJ45/SFP Shared WAN + 6x Internas + 2x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-50g',
+            name: 'FortiGate 50G',
+            sku: 'FG-50G',
+            series: 'G',
+            tierOrder: 5,
+            formFactor: 'Desktop',
+            ramGb: 2,
+            maxUsersByRam: 100,
+            threatProtectionMbps: 1100,
+            ngfwMbps: 1250,
+            ipsMbps: 2250,
+            totalConfigurablePorts: 5,
+            portsDescription: '5x GE RJ45 (1x WAN + 3x Internas + 1x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-70g',
+            name: 'FortiGate 70G',
+            sku: 'FG-70G',
+            series: 'G',
+            tierOrder: 6,
+            formFactor: 'Desktop',
+            ramGb: 4,
+            maxUsersByRam: 200,
+            threatProtectionMbps: 1300,
+            ngfwMbps: 1500,
+            ipsMbps: 2500,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x GE RJ45 (2x WAN + 6x Internas + 2x FortiLink)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-90g',
+            name: 'FortiGate 90G',
+            sku: 'FG-90G',
+            series: 'G',
+            tierOrder: 7,
+            formFactor: 'Desktop',
+            ramGb: 8,
+            maxUsersByRam: 250,
+            threatProtectionMbps: 2200,
+            ngfwMbps: 2500,
+            ipsMbps: 4500,
+            totalConfigurablePorts: 10,
+            portsDescription: '10x Portas (2x 10GE RJ45/SFP+ Shared WAN + 8x GE Internas)',
+            maxSiteToSiteTunnels: 200
+          },
+          {
+            id: 'fg-120g',
+            name: 'FortiGate 120G',
+            sku: 'FG-120G',
+            series: 'G',
+            tierOrder: 8,
+            formFactor: 'Rack 1RU',
+            ramGb: 8,
+            maxUsersByRam: 500,
+            threatProtectionMbps: 2800,
+            ngfwMbps: 3100,
+            ipsMbps: 5300,
+            totalConfigurablePorts: 28,
+            portsDescription: '28x Portas (16x GE RJ45 + 8x SFP + 4x 10GE SFP+ FortiLink)',
+            maxSiteToSiteTunnels: 2000
+          },
+          {
+            id: 'fg-200g',
+            name: 'FortiGate 200G',
+            sku: 'FG-200G',
+            series: 'G',
+            tierOrder: 9,
+            formFactor: 'Rack 1RU',
+            ramGb: 16,
+            maxUsersByRam: 500,
+            threatProtectionMbps: 6000,
+            ngfwMbps: 7000,
+            ipsMbps: 9000,
+            totalConfigurablePorts: 28,
+            portsDescription: '28x Portas (8x GE + 8x 5GE + 4x SFP + 8x 10GE SFP+)',
+            maxSiteToSiteTunnels: 2000
+          }
+        ]);
+
+        // Rascunho atual na Área do Cliente
+        const clientDraft = reactive({
+          id: 'draft-' + Date.now(),
+          companyName: '',
+          contactName: '',
+          contactEmail: '',
+          notes: '',
+          q9_growthPercent: 15,
+          q12_securityPlan: 'UTP (Unified Threat Protection)',
+          vpnTopology: 'star',
+          sites: [
+            {
+              id: 'site-1',
+              name: 'Matriz Principal',
+              quantity: 1,
+              q1_vpnSiteToSite: 3,
+              q2_vpnTunnels: 3,
+              q3_mobileVpnUsers: 10,
+              q4_lanPorts: 2,
+              q5_wanPorts: 2,
+              q6_bandwidthValue: 500,
+              q6_bandwidthUnit: 'Mbps',
+              q7_lanDevices: 25,
+              q8_wifiDevices: 15,
+              q10_haMode: 'Não',
+              q11_voipExtensions: 10,
+              q13_additionalServices: []
+            }
+          ]
+        });
+
+        // Lista de QPVs submetidos (Carrega 2 exemplos realistas multi-filial para o Consultor testar na hora)
+        const submissions = ref([
+          {
+            id: 'sub-demo-1',
+            companyName: 'Grupo Varejo Brasil (Matriz + 8 Lojas)',
+            contactName: 'Roberto Almeida (Head de TI)',
+            contactEmail: 'roberto@varejobrasil.com.br',
+            submittedAt: '06/11/2026',
+            q9_growthPercent: 20,
+            q12_securityPlan: 'UTP (Unified Threat Protection)',
+            vpnTopology: 'star',
+            sites: [
+              {
+                id: 's-101',
+                name: 'Matriz São Paulo (Datacenter)',
+                quantity: 1,
+                q1_vpnSiteToSite: 8,
+                q2_vpnTunnels: 16,
+                q3_mobileVpnUsers: 35,
+                q4_lanPorts: 6,
+                q5_wanPorts: 2,
+                q6_bandwidthValue: 1.5,
+                q6_bandwidthUnit: 'Gbps',
+                q7_lanDevices: 90,
+                q8_wifiDevices: 50,
+                q10_haMode: 'Sim - Ativo/Passivo',
+                q11_voipExtensions: 40,
+                q13_additionalServices: ['FortiSwitch', 'FortiAnalyzer']
+              },
+              {
+                id: 's-102',
+                name: 'Lojas Padrão P (Shopping)',
+                quantity: 8,
+                q1_vpnSiteToSite: 1,
+                q2_vpnTunnels: 2,
+                q3_mobileVpnUsers: 0,
+                q4_lanPorts: 2,
+                q5_wanPorts: 1,
+                q6_bandwidthValue: 350,
+                q6_bandwidthUnit: 'Mbps',
+                q7_lanDevices: 12,
+                q8_wifiDevices: 10,
+                q10_haMode: 'Não',
+                q11_voipExtensions: 5,
+                q13_additionalServices: ['FortiAP']
+              }
+            ]
+          },
+          {
+            id: 'sub-demo-2',
+            companyName: 'Clínica Médica Vida (Unidade Única)',
+            contactName: 'Dra. Fernanda Costa',
+            contactEmail: 'ti@clinicavida.com.br',
+            submittedAt: '06/11/2026',
+            q9_growthPercent: 15,
+            q12_securityPlan: 'UTP (Unified Threat Protection)',
+            vpnTopology: 'single',
+            sites: [
+              {
+                id: 's-201',
+                name: 'Sede Clínica Central',
+                quantity: 1,
+                q1_vpnSiteToSite: 1,
+                q2_vpnTunnels: 2,
+                q3_mobileVpnUsers: 10,
+                q4_lanPorts: 4,
+                q5_wanPorts: 2,
+                q6_bandwidthValue: 800,
+                q6_bandwidthUnit: 'Mbps',
+                q7_lanDevices: 45,
+                q8_wifiDevices: 40,
+                q10_haMode: 'Não',
+                q11_voipExtensions: 20,
+                q13_additionalServices: ['FortiAP']
+              }
+            ]
+          }
+        ]);
+
+        // Persistência LocalStorage
+        onMounted(() => {
+          try {
+            const saved = localStorage.getItem('mundivox_qpv_submissions_v2');
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                submissions.value = parsed;
+                selectedSubmissionId.value = parsed[0].id;
+              }
+            }
+          } catch (e) {
+            console.warn('LocalStorage indisponível:', e);
+          }
+        });
+
+        function saveSubmissionsToStorage() {
+          try {
+            localStorage.setItem('mundivox_qpv_submissions_v2', JSON.stringify(submissions.value));
+          } catch (e) {
+            console.warn('Erro ao salvar no LocalStorage:', e);
+          }
+        }
+
+        // Computeds da Gamificação do Cliente
+        const currentClientSite = computed(() => {
+          return clientDraft.sites[activeClientSiteIndex.value] || clientDraft.sites[0];
+        });
+
+        const clientProgressPercent = computed(() => {
+          if (clientStep.value === 4) return 100;
+          let pts = 15;
+          if (clientDraft.companyName.trim().length > 2) pts += 20;
+          if (clientDraft.contactName.trim().length > 2) pts += 15;
+          if (clientStep.value >= 2) pts += 20;
+          if (clientStep.value >= 3) pts += 25;
+          return Math.min(95, pts);
+        });
+
+        const clientLevelTitle = computed(() => {
+          const p = clientProgressPercent.value;
+          if (p < 40) return 'Nível 1: Iniciando o Mapeamento da Rede';
+          if (p < 70) return 'Nível 2: Estrategista de Conectividade & Segurança';
+          if (p < 100) return 'Nível 3: Arquiteto Multi-Filial (Quase lá!)';
+          return 'Nível Máximo: Rede 100% Mapeada para Engenharia!';
+        });
+
+        const gamificationBadges = computed(() => [
+          { id: 'b1', label: 'Identificação OK', icon: 'ph-fill ph-identification-badge', unlocked: clientDraft.companyName.trim().length > 2 },
+          { id: 'b2', label: 'Guardião da Segurança', icon: 'ph-fill ph-shield-star', unlocked: clientStep.value >= 2 },
+          { id: 'b3', label: `Arquiteto (${totalMappedUnitsCount(clientDraft)} un.)`, icon: 'ph-fill ph-buildings', unlocked: clientStep.value >= 3 },
+          { id: 'b4', label: 'Missão Cumprida!', icon: 'ph-fill ph-trophy', unlocked: clientStep.value === 4 }
+        ]);
+
+        // Funções da Jornada do Cliente
+        function enterClientMode() {
+          appMode.value = 'client';
+          if (clientStep.value === 4) clientStep.value = 1;
+        }
+
+        function setVpnTopology(type) {
+          clientDraft.vpnTopology = type;
+          const totalSites = totalMappedUnitsCount(clientDraft);
+          clientDraft.sites.forEach((s, idx) => {
+            if (type === 'single') {
+              s.q1_vpnSiteToSite = 0;
+              s.q2_vpnTunnels = 0;
+            } else if (type === 'star') {
+              s.q1_vpnSiteToSite = idx === 0 ? Math.max(1, totalSites - 1) : 1;
+              s.q2_vpnTunnels = idx === 0 ? Math.max(2, (totalSites - 1) * 2) : 2;
+            } else {
+              s.q1_vpnSiteToSite = Math.max(2, totalSites);
+              s.q2_vpnTunnels = Math.max(4, totalSites * 2);
+            }
+          });
+        }
+
+        function addClientSite(mode) {
+          const idx = clientDraft.sites.length + 1;
+          clientDraft.sites.push({
+            id: 'site-' + Date.now() + '-' + idx,
+            name: mode === 'batch' ? `Lote de Filiais Padrão #${idx}` : `Filial 0${idx - 1}`,
+            quantity: mode === 'batch' ? 5 : 1,
+            q1_vpnSiteToSite: 1,
+            q2_vpnTunnels: 2,
+            q3_mobileVpnUsers: 0,
+            q4_lanPorts: 2,
+            q5_wanPorts: 1,
+            q6_bandwidthValue: 300,
+            q6_bandwidthUnit: 'Mbps',
+            q7_lanDevices: 12,
+            q8_wifiDevices: 10,
+            q10_haMode: 'Não',
+            q11_voipExtensions: 5,
+            q13_additionalServices: []
+          });
+          activeClientSiteIndex.value = clientDraft.sites.length - 1;
+          showToast(mode === 'batch' ? 'Lote de filiais adicionado!' : 'Nova filial adicionada!');
+        }
+
+        function removeClientSite(index) {
+          if (clientDraft.sites.length <= 1) return;
+          clientDraft.sites.splice(index, 1);
+          activeClientSiteIndex.value = Math.max(0, index - 1);
+        }
+
+        function toggleSiteService(site, srv) {
+          const i = site.q13_additionalServices.indexOf(srv);
+          if (i >= 0) {
+            site.q13_additionalServices.splice(i, 1);
+          } else {
+            site.q13_additionalServices.push(srv);
+          }
+        }
+
+        function finishClientJourney() {
+          const newSub = JSON.parse(JSON.stringify(clientDraft));
+          newSub.id = 'sub-' + Date.now();
+          if (!newSub.companyName.trim()) {
+            newSub.companyName = 'Cliente Mundivox #' + (submissions.value.length + 1);
+          }
+          newSub.submittedAt = new Date().toLocaleDateString('pt-BR');
+          submissions.value.unshift(newSub);
+          selectedSubmissionId.value = newSub.id;
+          selectedSiteIndex.value = 0;
+          saveSubmissionsToStorage();
+          clientStep.value = 4;
+          showToast('QPV enviado com sucesso para a Engenharia Mundivox!');
+        }
+
+        function startNewClientDraft() {
+          clientDraft.companyName = '';
+          clientDraft.contactName = '';
+          clientDraft.contactEmail = '';
+          clientDraft.notes = '';
+          clientStep.value = 1;
+          activeClientSiteIndex.value = 0;
+        }
+
+        // Controle de Acesso ao Consultor
+        function openConsultantGate() {
+          if (isConsultantAuthenticated.value) {
+            appMode.value = 'consultant';
+          } else {
+            pinInput.value = '';
+            pinError.value = false;
+            showPinModal.value = true;
+          }
+        }
+
+        function verifyConsultantPin() {
+          const clean = pinInput.value.trim().toLowerCase();
+          if (clean === 'mundivox' || clean === '1234' || clean === 'admin') {
+            isConsultantAuthenticated.value = true;
+            showPinModal.value = false;
+            appMode.value = 'consultant';
+            showToast('Acesso de Consultor liberado!');
+          } else {
+            pinError.value = true;
+          }
+        }
+
+        function openConsultantDirectWithLastSubmission() {
+          isConsultantAuthenticated.value = true;
+          appMode.value = 'consultant';
+          consultantTab.value = 'analyzer';
+        }
+
+        // MOTOR DE DIMENSIONAMENTO DO CONSULTOR (POR UNIDADE E CONSOLIDADO)
+        const currentSubmission = computed(() => {
+          return submissions.value.find(s => s.id === selectedSubmissionId.value) || submissions.value[0];
+        });
+
+        const currentConsultantSite = computed(() => {
+          if (!currentSubmission.value) return null;
+          return currentSubmission.value.sites[selectedSiteIndex.value] || currentSubmission.value.sites[0];
+        });
+
+        // Função pura que avalia uma única unidade contra todas as 9 caixas FortiGate
+        function evaluateSingleSite(site, growthPercent) {
+          const q3 = Number(site.q3_mobileVpnUsers) || 0;
+          const q7 = Number(site.q7_lanDevices) || 0;
+          const q8 = Number(site.q8_wifiDevices) || 0;
+          const q11 = Number(site.q11_voipExtensions) || 0;
+          const baseUsers = q3 + q7 + q8 + q11;
+          const growth = Number(growthPercent) || 0;
+          const totalUsersWithGrowth = Math.ceil(baseUsers * (1 + growth / 100));
+
+          const lanPorts = Number(site.q4_lanPorts) || 0;
+          const wanPorts = Number(site.q5_wanPorts) || 0;
+          const totalRequiredPorts = lanPorts + wanPorts;
+
+          const bwVal = Number(site.q6_bandwidthValue) || 0;
+          const requiredBandwidthMbps = site.q6_bandwidthUnit === 'Gbps' ? bwVal * 1000 : bwVal;
+
+          const requiredTunnels = Math.max(Number(site.q1_vpnSiteToSite) || 0, Number(site.q2_vpnTunnels) || 0);
+
+          const evaluatedBoxes = firewallModels.map(box => {
+            const failReasons = [];
+
+            if (box.threatProtectionMbps < requiredBandwidthMbps) {
+              failReasons.push(`Banda Threat Protection insuficiente: suporta ${formatMbps(box.threatProtectionMbps)}, exige ${formatMbps(requiredBandwidthMbps)}`);
+            }
+            if (totalUsersWithGrowth > box.maxUsersByRam) {
+              failReasons.push(`Limite de Usuários/RAM excedido: suporta ${box.maxUsersByRam} (${box.ramGb}GB RAM), exige ${totalUsersWithGrowth}`);
+            }
+            if (box.totalConfigurablePorts < totalRequiredPorts) {
+              failReasons.push(`Portas insuficientes: possui ${box.totalConfigurablePorts} portas, exige ${totalRequiredPorts} (${lanPorts} LAN + ${wanPorts} WAN)`);
+            }
+            if (requiredTunnels > box.maxSiteToSiteTunnels) {
+              failReasons.push(`Túneis VPN insuficientes: suporta ${box.maxSiteToSiteTunnels}, exige ${requiredTunnels}`);
+            }
+
+            return {
+              ...box,
+              failReasons,
+              passedAll: failReasons.length === 0
+            };
+          });
+
+          const validBoxes = evaluatedBoxes.filter(b => b.passedAll);
+          validBoxes.sort((a, b) => {
+            if (a.threatProtectionMbps !== b.threatProtectionMbps) {
+              return a.threatProtectionMbps - b.threatProtectionMbps;
+            }
+            return a.tierOrder - b.tierOrder;
+          });
+
+          const recommendedBox = validBoxes.length > 0 ? validBoxes[0] : null;
+          const appliancesPerSite = site.q10_haMode === 'Não' ? 1 : 2;
+          const siteQty = Math.max(1, Number(site.quantity) || 1);
+          const totalAppliancesForThisSiteGroup = appliancesPerSite * siteQty;
+
+          return {
+            site,
+            baseUsers,
+            totalUsersWithGrowth,
+            totalRequiredPorts,
+            requiredBandwidthMbps,
+            evaluatedBoxes,
+            recommendedBox,
+            appliancesPerSite,
+            totalAppliancesForThisSiteGroup
+          };
+        }
+
+        const evaluatedSubmissionSites = computed(() => {
+          if (!currentSubmission.value) return [];
+          return currentSubmission.value.sites.map(site =>
+            evaluateSingleSite(site, currentSubmission.value.q9_growthPercent)
+          );
+        });
+
+        const activeSiteEvaluation = computed(() => {
+          return evaluatedSubmissionSites.value[selectedSiteIndex.value] || evaluatedSubmissionSites.value[0] || null;
+        });
+
+        const projectBomSummary = computed(() => {
+          const map = {};
+          evaluatedSubmissionSites.value.forEach(item => {
+            if (item.recommendedBox) {
+              const sku = item.recommendedBox.sku;
+              map[sku] = (map[sku] || 0) + item.totalAppliancesForThisSiteGroup;
+            }
+          });
+          return map;
+        });
+
+        function addSiteToCurrentSubmission() {
+          if (!currentSubmission.value) return;
+          const idx = currentSubmission.value.sites.length + 1;
+          currentSubmission.value.sites.push({
+            id: 'site-c-' + Date.now(),
+            name: `Nova Filial 0${idx}`,
+            quantity: 1,
+            q1_vpnSiteToSite: 1,
+            q2_vpnTunnels: 2,
+            q3_mobileVpnUsers: 0,
+            q4_lanPorts: 2,
+            q5_wanPorts: 1,
+            q6_bandwidthValue: 400,
+            q6_bandwidthUnit: 'Mbps',
+            q7_lanDevices: 15,
+            q8_wifiDevices: 10,
+            q10_haMode: 'Não',
+            q11_voipExtensions: 5,
+            q13_additionalServices: []
+          });
+          selectedSiteIndex.value = currentSubmission.value.sites.length - 1;
+          saveSubmissionsToStorage();
+        }
+
+        function createNewSubmissionInConsultant() {
+          const newSub = {
+            id: 'sub-' + Date.now(),
+            companyName: 'Novo Cliente Simulado #' + (submissions.value.length + 1),
+            contactName: 'Consultor Mundivox',
+            contactEmail: 'prevenda@mundivox.com.br',
+            submittedAt: new Date().toLocaleDateString('pt-BR'),
+            q9_growthPercent: 15,
+            q12_securityPlan: 'UTP (Unified Threat Protection)',
+            vpnTopology: 'star',
+            sites: [
+              {
+                id: 's-new-1',
+                name: 'Matriz Principal',
+                quantity: 1,
+                q1_vpnSiteToSite: 2,
+                q2_vpnTunnels: 4,
+                q3_mobileVpnUsers: 10,
+                q4_lanPorts: 3,
+                q5_wanPorts: 2,
+                q6_bandwidthValue: 600,
+                q6_bandwidthUnit: 'Mbps',
+                q7_lanDevices: 30,
+                q8_wifiDevices: 20,
+                q10_haMode: 'Não',
+                q11_voipExtensions: 10,
+                q13_additionalServices: []
+              }
+            ]
+          };
+          submissions.value.unshift(newSub);
+          selectedSubmissionId.value = newSub.id;
+          selectedSiteIndex.value = 0;
+          saveSubmissionsToStorage();
+          showToast('Novo projeto criado no painel do consultor!');
+        }
+
+        // Exportar / Importar JSON
+        function exportSingleQpvJson(subObj) {
+          const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(subObj, null, 2));
+          const a = document.createElement('a');
+          a.setAttribute('href', dataStr);
+          const safeName = (subObj.companyName || 'qpv-mundivox').toLowerCase().replace(/[^a-z0-9]/g, '-');
+          a.setAttribute('download', `qpv-${safeName}.json`);
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          showToast('Arquivo QPV (.json) exportado!');
+        }
+
+        function importQpvJson(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const imported = JSON.parse(e.target.result);
+              if (imported && Array.isArray(imported.sites)) {
+                imported.id = 'sub-imp-' + Date.now();
+                submissions.value.unshift(imported);
+                selectedSubmissionId.value = imported.id;
+                selectedSiteIndex.value = 0;
+                saveSubmissionsToStorage();
+                showToast('QPV importado com sucesso!');
+              }
+            } catch (err) {
+              showToast('Erro ao ler o arquivo JSON.');
+            }
+          };
+          reader.readAsText(file);
+        }
+
+        // Helpers Gerais
+        function totalMappedUnitsCount(sub) {
+          if (!sub || !Array.isArray(sub.sites)) return 0;
+          return sub.sites.reduce((acc, s) => acc + (Number(s.quantity) || 1), 0);
+        }
+
+        function formatMbps(mbps) {
+          if (mbps >= 1000) {
+            return (mbps / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' Gbps';
+          }
+          return mbps + ' Mbps';
+        }
+
+        function printConsultantReport() {
+          window.print();
+        }
+
+        function showToast(msg) {
+          toastMessage.value = msg;
+          setTimeout(() => {
+            toastMessage.value = '';
+          }, 3200);
+        }
+
+        return {
+          appMode,
+          showPinModal,
+          pinInput,
+          pinError,
+          isConsultantAuthenticated,
+          toastMessage,
+          clientStep,
+          activeClientSiteIndex,
+          consultantTab,
+          selectedSubmissionId,
+          selectedSiteIndex,
+          firewallModels,
+          clientDraft,
+          submissions,
+          currentClientSite,
+          clientProgressPercent,
+          clientLevelTitle,
+          gamificationBadges,
+          enterClientMode,
+          setVpnTopology,
+          addClientSite,
+          removeClientSite,
+          toggleSiteService,
+          finishClientJourney,
+          startNewClientDraft,
+          openConsultantGate,
+          verifyConsultantPin,
+          openConsultantDirectWithLastSubmission,
+          currentSubmission,
+          currentConsultantSite,
+          evaluatedSubmissionSites,
+          activeSiteEvaluation,
+          projectBomSummary,
+          addSiteToCurrentSubmission,
+          createNewSubmissionInConsultant,
+          exportSingleQpvJson,
+          importQpvJson,
+          totalMappedUnitsCount,
+          formatMbps,
+          printConsultantReport
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
